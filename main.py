@@ -305,6 +305,16 @@ async def main() -> None:
     # Pytanie o pobieranie PDF
     download_pdfs_input = input("Czy pobierać i analizować pliki PDF? (tak/nie): ").lower()
     download_pdfs = download_pdfs_input in ['tak', 't', 'yes', 'y', '']  # Domyślnie tak, jeśli pusty input
+    
+    # Pytanie o głębokość crawlowania
+    crawl_depth_input = input("Podaj głębokość crawlowania (1-5, domyślnie 1): ")
+    try:
+        crawl_depth = int(crawl_depth_input) if crawl_depth_input.strip() else 1
+        # Ograniczenie głębokości do zakresu 1-5
+        crawl_depth = max(1, min(5, crawl_depth))
+    except ValueError:
+        crawl_depth = 1
+    print(f"Ustawiona głębokość crawlowania: {crawl_depth}")
 
     pdf_paths = []
     all_visited_urls = set()
@@ -317,7 +327,7 @@ async def main() -> None:
         if item.startswith('http'):
             # It's a URL, crawl the website
             print(f"Crawling website: {item}...")
-            downloaded_pdfs, visited_urls = await crawl_website(item, output_dir, model_client, download_pdfs=download_pdfs)
+            downloaded_pdfs, visited_urls = await crawl_website(item, output_dir, model_client, max_depth=crawl_depth, download_pdfs=download_pdfs)
             if download_pdfs:
                 pdf_paths.extend(downloaded_pdfs)
             all_visited_urls.update(visited_urls)

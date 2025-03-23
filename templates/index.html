@@ -28,6 +28,18 @@
                                 <div class="form-text">Twój klucz API jest używany tylko lokalnie i nie jest nigdzie przechowywany.</div>
                             </div>
                             
+                            <div class="mb-3">
+                                <label for="crawl_depth" class="form-label">Głębokość crawlowania:</label>
+                                <select class="form-select" id="crawl_depth" name="crawl_depth">
+                                    <option value="1" selected>1 - tylko podana strona</option>
+                                    <option value="2">2 - strona i bezpośrednie linki</option>
+                                    <option value="3">3 - głębsze przeszukiwanie</option>
+                                    <option value="4">4 - bardzo głębokie przeszukiwanie</option>
+                                    <option value="5">5 - maksymalna głębokość (może trwać długo)</option>
+                                </select>
+                                <div class="form-text">Wyższa głębokość oznacza więcej odwiedzonych stron, ale dłuższy czas analizy.</div>
+                            </div>
+                            
                             <div class="mb-3 form-check">
                                 <input type="checkbox" class="form-check-input" id="download_pdfs" name="download_pdfs" checked>
                                 <label class="form-check-label" for="download_pdfs">Pobieraj i analizuj pliki PDF</label>

@@ -44,12 +44,21 @@ def process():
     # Pobierz opcję pobierania PDF
     download_pdfs = 'download_pdfs' in request.form
     
+    # Pobierz głębokość crawlowania
+    try:
+        crawl_depth = int(request.form.get('crawl_depth', '1'))
+        # Ograniczenie głębokości do zakresu 1-5
+        crawl_depth = max(1, min(5, crawl_depth))
+    except ValueError:
+        crawl_depth = 1
+    
     # Zapisz dane wejściowe w sesji
     session['user_input'] = user_input
     session['download_pdfs'] = download_pdfs
+    session['crawl_depth'] = crawl_depth
     
     # Uruchom analizę asynchronicznie
-    asyncio.run(process_input(user_inputs, form_api_key, download_pdfs))
+    asyncio.run(process_input(user_inputs, form_api_key, download_pdfs, crawl_depth))
     
     # Przekieruj do strony wyników
     return redirect(url_for('results_page'))
@@ -73,7 +82,7 @@ def status():
         "summaries": len(results["summaries"])
     })
 
-async def process_input(user_inputs, form_api_key=None, download_pdfs=True):
+async def process_input(user_inputs, form_api_key=None, download_pdfs=True, crawl_depth=1):
     """Przetwarza dane wejściowe i uruchamia analizę."""
     # Wyczyść poprzednie wyniki
     results["urls_visited"] = set()
@@ -104,7 +113,7 @@ async def process_input(user_inputs, form_api_key=None, download_pdfs=True):
     for item in user_inputs:
         if item.startswith('http'):
             # To URL, crawluj stronę
-            downloaded_pdfs, visited_urls = await crawl_website(item, OUTPUT_DIR, model_client, download_pdfs=download_pdfs)
+            downloaded_pdfs, visited_urls = await crawl_website(item, OUTPUT_DIR, model_client, max_depth=crawl_depth, download_pdfs=download_pdfs)
             if download_pdfs:
                 pdf_paths.extend(downloaded_pdfs)
                 results["pdfs_downloaded"].extend(downloaded_pdfs)

@@ -23,6 +23,10 @@
                                 <br>
                                 <strong>Pobieranie PDF:</strong> {% if session.get('download_pdfs') %}Włączone{% else %}Wyłączone{% endif %}
                             {% endif %}
+                            {% if session.get('crawl_depth') is defined %}
+                                <br>
+                                <strong>Głębokość crawlowania:</strong> {{ session.get('crawl_depth') }}
+                            {% endif %}
                         </div>
                         
                         <!-- Status analizy -->
