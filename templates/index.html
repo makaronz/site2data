@@ -21,6 +21,18 @@
                                 <label for="input" class="form-label">Wprowadź URL, listę URL-i oddzielonych przecinkami lub ścieżkę do pliku/katalogu PDF:</label>
                                 <textarea class="form-control" id="input" name="input" rows="3" required></textarea>
                             </div>
+                            
+                            <div class="mb-3">
+                                <label for="api_key" class="form-label">Klucz API OpenAI (opcjonalnie, jeśli nie jest ustawiony w pliku .env):</label>
+                                <input type="password" class="form-control" id="api_key" name="api_key" placeholder="sk-...">
+                                <div class="form-text">Twój klucz API jest używany tylko lokalnie i nie jest nigdzie przechowywany.</div>
+                            </div>
+                            
+                            <div class="mb-3 form-check">
+                                <input type="checkbox" class="form-check-input" id="download_pdfs" name="download_pdfs" checked>
+                                <label class="form-check-label" for="download_pdfs">Pobieraj i analizuj pliki PDF</label>
+                            </div>
+                            
                             <div class="d-grid gap-2">
                                 <button type="submit" class="btn btn-primary">Analizuj</button>
                             </div>

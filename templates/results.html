@@ -19,6 +19,10 @@
                     <div class="card-body">
                         <div class="alert alert-info">
                             <strong>Dane wejściowe:</strong> {{ user_input }}
+                            {% if session.get('download_pdfs') is defined %}
+                                <br>
+                                <strong>Pobieranie PDF:</strong> {% if session.get('download_pdfs') %}Włączone{% else %}Wyłączone{% endif %}
+                            {% endif %}
                         </div>
                         
                         <!-- Status analizy -->

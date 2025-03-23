@@ -38,11 +38,18 @@ def process():
     user_input = request.form.get('input', '')
     user_inputs = [u.strip() for u in user_input.split(',')]
     
+    # Pobierz klucz API z formularza (jeśli podany)
+    form_api_key = request.form.get('api_key', '')
+    
+    # Pobierz opcję pobierania PDF
+    download_pdfs = 'download_pdfs' in request.form
+    
     # Zapisz dane wejściowe w sesji
     session['user_input'] = user_input
+    session['download_pdfs'] = download_pdfs
     
     # Uruchom analizę asynchronicznie
-    asyncio.run(process_input(user_inputs))
+    asyncio.run(process_input(user_inputs, form_api_key, download_pdfs))
     
     # Przekieruj do strony wyników
     return redirect(url_for('results_page'))
@@ -66,18 +73,21 @@ def status():
         "summaries": len(results["summaries"])
     })
 
-async def process_input(user_inputs):
+async def process_input(user_inputs, form_api_key=None, download_pdfs=True):
     """Przetwarza dane wejściowe i uruchamia analizę."""
     # Wyczyść poprzednie wyniki
     results["urls_visited"] = set()
     results["pdfs_downloaded"] = []
     results["summaries"] = []
     
-    # Inicjalizuj klienta modelu
-    model_client = OpenAIChatCompletionClient(model="gpt-4o", api_key=API_KEY)
+    # Użyj klucza API z formularza, jeśli został podany, w przeciwnym razie użyj klucza z .env
+    api_key = form_api_key if form_api_key else API_KEY
     
-    if not API_KEY:
-        return render_template('error.html', error="Brak klucza API OpenAI. Sprawdź plik .env.")
+    if not api_key:
+        return render_template('error.html', error="Brak klucza API OpenAI. Wprowadź klucz w formularzu lub skonfiguruj plik .env.")
+    
+    # Inicjalizuj klienta modelu
+    model_client = OpenAIChatCompletionClient(model="gpt-4o", api_key=api_key)
     
     pdf_paths = []
     
@@ -94,10 +104,11 @@ async def process_input(user_inputs):
     for item in user_inputs:
         if item.startswith('http'):
             # To URL, crawluj stronę
-            downloaded_pdfs, visited_urls = await crawl_website(item, OUTPUT_DIR, model_client)
-            pdf_paths.extend(downloaded_pdfs)
+            downloaded_pdfs, visited_urls = await crawl_website(item, OUTPUT_DIR, model_client, download_pdfs=download_pdfs)
+            if download_pdfs:
+                pdf_paths.extend(downloaded_pdfs)
+                results["pdfs_downloaded"].extend(downloaded_pdfs)
             results["urls_visited"].update(visited_urls)
-            results["pdfs_downloaded"].extend(downloaded_pdfs)
             
             # Dodaj podsumowania stron do wyników
             if os.path.exists(all_summaries_filepath):

@@ -56,7 +56,7 @@ async def generate_summary(text, model_client, source_info=""):
     response = await assistant.run(task=prompt)
     return response.content[0].text
 
-async def crawl_website(url, output_dir, model_client=None, max_depth=1, current_depth=0, visited_urls=None):
+async def crawl_website(url, output_dir, model_client=None, max_depth=1, current_depth=0, visited_urls=None, download_pdfs=True):
     """Recursively crawls a website, downloads PDFs, extracts links, and analyzes page content."""
     if visited_urls is None:
         visited_urls = set()
@@ -106,32 +106,36 @@ async def crawl_website(url, output_dir, model_client=None, max_depth=1, current
             except Exception as e:
                 print(f"Błąd generowania podsumowania dla {url}: {e}")
 
-    # Download PDFs
-    pdf_links = [a.get('href') for a in soup.find_all('a', href=True) if a.get('href') and a.get('href').lower().endswith('.pdf')]
+    # Download PDFs if enabled
+    downloaded_files = []
+    if download_pdfs:
+        pdf_links = [a.get('href') for a in soup.find_all('a', href=True) if a.get('href') and a.get('href').lower().endswith('.pdf')]
 
-    print(f"Znalezione linki PDF na {url}: {pdf_links}")
+        print(f"Znalezione linki PDF na {url}: {pdf_links}")
 
-    for link in pdf_links:
-        if not link.startswith('http'):
-            link = requests.compat.urljoin(url, link) # Bezwzględny URL
-        try:
-            headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-            }
-            pdf_response = requests.get(link, headers=headers)
-            pdf_response.raise_for_status()
+        for link in pdf_links:
+            if not link.startswith('http'):
+                link = requests.compat.urljoin(url, link) # Bezwzględny URL
+            try:
+                headers = {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+                }
+                pdf_response = requests.get(link, headers=headers)
+                pdf_response.raise_for_status()
 
-            filename = os.path.basename(link)
-            filepath = os.path.join(output_dir, filename)
+                filename = os.path.basename(link)
+                filepath = os.path.join(output_dir, filename)
 
-            os.makedirs(output_dir, exist_ok=True)
-            with open(filepath, 'wb') as f:
-                f.write(pdf_response.content)
-            downloaded_files.append(filepath)
-            print(f"Downloaded PDF: {filename}")
+                os.makedirs(output_dir, exist_ok=True)
+                with open(filepath, 'wb') as f:
+                    f.write(pdf_response.content)
+                downloaded_files.append(filepath)
+                print(f"Downloaded PDF: {filename}")
 
-        except requests.exceptions.RequestException as e:
-            print(f"Error downloading {link}: {e}")
+            except requests.exceptions.RequestException as e:
+                print(f"Error downloading {link}: {e}")
+    else:
+        print(f"Pomijanie pobierania plików PDF dla {url} (opcja wyłączona)")
 
     # Recursively crawl links, up to max_depth
     if current_depth < max_depth:
@@ -141,7 +145,7 @@ async def crawl_website(url, output_dir, model_client=None, max_depth=1, current
                 link = requests.compat.urljoin(url, link)
             # Check if the link is in the same domain
             if requests.compat.urlparse(link).netloc == requests.compat.urlparse(url).netloc:
-                new_files, new_visited_urls = await crawl_website(link, output_dir, model_client, max_depth, current_depth + 1, visited_urls)
+                new_files, new_visited_urls = await crawl_website(link, output_dir, model_client, max_depth, current_depth + 1, visited_urls, download_pdfs)
                 downloaded_files.extend(new_files)
                 visited_urls.update(new_visited_urls)
 
@@ -297,6 +301,10 @@ async def main() -> None:
     # Get URLs or local paths from the user
     user_input = input("Enter a URL, a comma-separated list of URLs, or a path to a local PDF file/directory: ")
     user_inputs = [u.strip() for u in user_input.split(',')]
+    
+    # Pytanie o pobieranie PDF
+    download_pdfs_input = input("Czy pobierać i analizować pliki PDF? (tak/nie): ").lower()
+    download_pdfs = download_pdfs_input in ['tak', 't', 'yes', 'y', '']  # Domyślnie tak, jeśli pusty input
 
     pdf_paths = []
     all_visited_urls = set()
@@ -309,8 +317,9 @@ async def main() -> None:
         if item.startswith('http'):
             # It's a URL, crawl the website
             print(f"Crawling website: {item}...")
-            downloaded_pdfs, visited_urls = await crawl_website(item, output_dir, model_client)
-            pdf_paths.extend(downloaded_pdfs)
+            downloaded_pdfs, visited_urls = await crawl_website(item, output_dir, model_client, download_pdfs=download_pdfs)
+            if download_pdfs:
+                pdf_paths.extend(downloaded_pdfs)
             all_visited_urls.update(visited_urls)
         elif os.path.isdir(item):
             # It's a directory, process all PDFs in it
