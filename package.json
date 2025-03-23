@@ -1,0 +1,31 @@
+{
+  "name": "site2data",
+  "version": "1.0.0",
+  "description": "Narzędzie do analizy stron internetowych i plików PDF z wykorzystaniem AI",
+  "main": "index.js",
+  "scripts": {
+    "start": "python app.py",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "pdf",
+    "web",
+    "analysis",
+    "ai",
+    "openai",
+    "flask"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "bootstrap": "^5.3.0"
+  },
+  "devDependencies": {},
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/arkadiuszfudali/site2data.git"
+  }
+}
