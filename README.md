@@ -66,6 +66,34 @@ Site2Data is a powerful tool that analyzes websites and PDF documents using arti
 
 4. Click "Analyze" and wait for the results
 
+### 🌍 Deployment
+
+This application can be deployed in several ways:
+
+#### Cloud Platforms
+For deploying this application to cloud platforms, please refer to:
+- `deployment_guide.md` - Detailed instructions for deploying to Render
+- `alternative_deployment_options.md` - Instructions for other platforms like PythonAnywhere, Heroku, Google Cloud Run, AWS, and DigitalOcean
+
+Key deployment steps:
+1. Prepare your application (Procfile, requirements.txt)
+2. Push to your Git repository
+3. Deploy to your chosen cloud platform
+4. Configure environment variables (OPENAI_API_KEY)
+5. Install system dependencies (pdftotext)
+
+#### Docker Deployment
+For containerized deployment, please refer to `docker_deployment_guide.md`.
+
+The application includes:
+- `Dockerfile` - For building a Docker image
+- `docker-compose.yml` - For easy local deployment with Docker Compose
+
+To run with Docker Compose:
+```bash
+docker-compose up --build
+```
+
 ### 📋 Requirements
 
 - Python 3.8 or higher

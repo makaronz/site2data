@@ -51,3 +51,4 @@ downloaded_content/
 # OS specific
 .DS_Store
 Thumbs.db
+.qodo
