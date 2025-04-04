@@ -7,6 +7,11 @@ import os
 import subprocess
 import textwrap
 from dotenv import load_dotenv
+import json
+import sys
+from media_processor import MediaProcessor
+from production_docs import ProductionDocsManager
+from typing import Dict, Any
 
 # Załaduj zmienne środowiskowe z pliku .env
 load_dotenv()
@@ -288,6 +293,104 @@ async def process_pdfs(pdf_paths, model_client, output_dir="downloaded_content")
         else:
             print(f"Pomijanie analizy {pdf_path} z powodu błędu konwersji.")
 
+async def process_media_file(file_path: str, model_client, output_dir: str = "downloaded_content"):
+    """Process media file (video or image) and generate analysis."""
+    try:
+        media_processor = MediaProcessor(output_dir)
+        docs_manager = ProductionDocsManager()
+        
+        # Check file type
+        if file_path.lower().endswith(('.mp4', '.avi', '.mov', '.mkv')):
+            # Process video
+            report = media_processor.process_video(file_path)
+            
+            # Generate summary using AI
+            summary = await generate_summary(
+                json.dumps(report, indent=2),
+                model_client,
+                f"pliku wideo {file_path}"
+            )
+            
+            # Save summary
+            summary_path = os.path.join(output_dir, "media_summary.md")
+            with open(summary_path, 'w', encoding='utf-8') as f:
+                f.write(f"# Analiza pliku wideo: {os.path.basename(file_path)}\n\n")
+                f.write(f"## Podsumowanie AI:\n\n{summary}\n\n")
+                f.write(f"## Szczegółowa analiza:\n\n{json.dumps(report, indent=2)}")
+            
+            # Add to production documentation
+            doc_result = docs_manager.add_document(
+                content=summary,
+                doc_type="video_analysis",
+                metadata={
+                    "file_path": file_path,
+                    "tags": report.get("summary_tags", []),
+                    "scene_changes": report.get("scene_changes", []),
+                    "metadata": report.get("metadata", {})
+                }
+            )
+            
+            if doc_result.get("success"):
+                docs_manager.link_media_to_docs(file_path, [doc_result["doc_id"]])
+            
+            return report, summary
+            
+        elif file_path.lower().endswith(('.jpg', '.jpeg', '.png', '.bmp')):
+            # Process single image
+            analysis = media_processor.analyze_frame(file_path)
+            tags = media_processor.generate_tags(file_path)
+            mood = media_processor.analyze_scene_mood(file_path)
+            objects = media_processor.detect_objects(file_path)
+            
+            # Generate summary using AI
+            summary = await generate_summary(
+                json.dumps({
+                    **analysis,
+                    "tags": tags,
+                    "mood": mood,
+                    "objects": objects
+                }, indent=2),
+                model_client,
+                f"pliku obrazu {file_path}"
+            )
+            
+            # Save summary
+            summary_path = os.path.join(output_dir, "image_summary.md")
+            with open(summary_path, 'w', encoding='utf-8') as f:
+                f.write(f"# Analiza obrazu: {os.path.basename(file_path)}\n\n")
+                f.write(f"## Podsumowanie AI:\n\n{summary}\n\n")
+                f.write(f"## Szczegółowa analiza:\n\n{json.dumps(analysis, indent=2)}")
+            
+            # Add to production documentation
+            doc_result = docs_manager.add_document(
+                content=summary,
+                doc_type="image_analysis",
+                metadata={
+                    "file_path": file_path,
+                    "tags": tags,
+                    "mood": mood,
+                    "objects": objects
+                }
+            )
+            
+            if doc_result.get("success"):
+                docs_manager.link_media_to_docs(file_path, [doc_result["doc_id"]])
+            
+            return analysis, summary
+            
+    except Exception as e:
+        print(f"Error processing media file {file_path}: {e}")
+        return {}, ""
+
+async def query_production_docs(query: str) -> Dict[str, Any]:
+    """Query the production documentation system."""
+    try:
+        docs_manager = ProductionDocsManager()
+        return docs_manager.query_docs(query)
+    except Exception as e:
+        print(f"Error querying production docs: {e}")
+        return {"error": str(e)}
+
 async def main() -> None:
     # Użyj klucza API OpenAI z zmiennych środowiskowych
     api_key = os.getenv("OPENAI_API_KEY")
@@ -354,6 +457,30 @@ async def main() -> None:
         print(url)
         
     await model_client.close()
+
+    # Add media processing example
+    if len(sys.argv) > 1 and sys.argv[1] == "--process-media":
+        if len(sys.argv) < 3:
+            print("Please provide a media file path")
+            return
+        
+        media_file = sys.argv[2]
+        if not os.path.exists(media_file):
+            print(f"File not found: {media_file}")
+            return
+        
+        report, summary = await process_media_file(media_file, model_client)
+        print(f"Media analysis completed. Summary saved to downloaded_content/media_summary.md")
+
+    # Add production docs query example
+    if len(sys.argv) > 1 and sys.argv[1] == "--query-docs":
+        if len(sys.argv) < 3:
+            print("Please provide a query")
+            return
+        
+        query = " ".join(sys.argv[2:])
+        result = await query_production_docs(query)
+        print(f"Query result: {json.dumps(result, indent=2)}")
 
 if __name__ == "__main__":
     asyncio.run(main())

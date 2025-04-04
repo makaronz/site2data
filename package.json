@@ -1,31 +1,46 @@
 {
-  "name": "site2data",
-  "version": "1.0.0",
-  "description": "Narzędzie do analizy stron internetowych i plików PDF z wykorzystaniem AI",
-  "main": "index.js",
+  "name": "film-production-assistant",
+  "version": "0.1.0",
+  "description": "A comprehensive mobile and web application designed to streamline film production workflows",
+  "private": true,
+  "workspaces": [
+    "backend",
+    "frontend",
+    "mobile"
+  ],
   "scripts": {
-    "start": "python app.py",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start:backend": "cd backend && npm start",
+    "start:frontend": "cd frontend && npm start",
+    "start:mobile": "cd mobile && npm start",
+    "dev": "concurrently \"npm run start:backend\" \"npm run start:frontend\"",
+    "install:all": "npm install && npm run install:backend && npm run install:frontend && npm run install:mobile",
+    "install:backend": "cd backend && npm install",
+    "install:frontend": "cd frontend && npm install",
+    "install:mobile": "cd mobile && npm install",
+    "test": "npm run test:backend && npm run test:frontend && npm run test:mobile",
+    "test:backend": "cd backend && npm test",
+    "test:frontend": "cd frontend && npm test",
+    "test:mobile": "cd mobile && npm test",
+    "build": "npm run build:backend && npm run build:frontend",
+    "build:backend": "cd backend && npm run build",
+    "build:frontend": "cd frontend && npm run build",
+    "build:mobile": "cd mobile && npm run build"
   },
   "keywords": [
-    "pdf",
-    "web",
-    "analysis",
-    "ai",
-    "openai",
-    "flask"
+    "film",
+    "production",
+    "mobile",
+    "schedule",
+    "continuity",
+    "assistant"
   ],
   "author": "",
   "license": "MIT",
-  "dependencies": {
-    "bootstrap": "^5.3.0"
+  "devDependencies": {
+    "concurrently": "^8.0.1"
   },
-  "devDependencies": {},
   "engines": {
-    "node": ">=14.0.0"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/arkadiuszfudali/site2data.git"
+    "node": ">=16.0.0",
+    "npm": ">=8.0.0"
   }
 }
