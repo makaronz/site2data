@@ -1,18 +1,17 @@
 const mongoose = require('mongoose');
 
-const continuitySchema = new mongoose.Schema({
+const shotSchema = new mongoose.Schema({
   productionId: { type: mongoose.Schema.Types.ObjectId, ref: 'Production', required: true },
-  sceneNumber: { type: String, required: true },
+  sceneId: { type: mongoose.Schema.Types.ObjectId, ref: 'Scene', required: true },
   shotNumber: { type: String, required: true },
   description: { type: String, required: true },
-  props: [{ type: String }],
-  costumes: [{ type: String }],
-  makeup: [{ type: String }],
-  hair: [{ type: String }],
-  setDressing: [{ type: String }],
+  cameraAngle: { type: String, required: true },
+  cameraMovement: { type: String },
+  lens: { type: String },
+  lighting: { type: String },
   notes: { type: String },
   status: { type: String, required: true },
   createdAt: { type: Date, default: Date.now }
 });
 
-module.exports = mongoose.model('Continuity', continuitySchema); 
+module.exports = mongoose.model('Shot', shotSchema); 

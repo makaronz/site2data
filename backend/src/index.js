@@ -6,6 +6,7 @@ const morgan = require('morgan');
 const http = require('http');
 const socketIo = require('socket.io');
 const path = require('path');
+const scriptController = require('./controllers/scriptController');
 
 // Load env variables
 dotenv.config();
@@ -49,6 +50,9 @@ app.use('/api/documents', documentRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/equipment', equipmentRoutes);
 app.use('/api/continuity', continuityRoutes);
+
+// Endpoint testowy dla parsera scenariusza
+app.get('/api/script/test', scriptController.testParse);
 
 // API status route
 app.get('/api/status', (req, res) => {

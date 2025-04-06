@@ -5,12 +5,26 @@ from main import crawl_website, process_pdfs, generate_summary, extract_text_fro
 import requests
 from autogen_ext.models.openai import OpenAIChatCompletionClient
 from dotenv import load_dotenv
+from flask_cors import CORS
+from production_docs import process_production_docs
+from media_processor import process_media_files
+from werkzeug.utils import secure_filename
+import logging
+from datetime import datetime
 
 # Załaduj zmienne środowiskowe z pliku .env
 load_dotenv()
 
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
 app = Flask(__name__)
 app.secret_key = os.urandom(24)  # Potrzebne do obsługi sesji
+CORS(app)
 
 # Klucz API OpenAI z zmiennych środowiskowych
 API_KEY = os.getenv("OPENAI_API_KEY")
@@ -25,6 +39,18 @@ results = {
     "pdfs_downloaded": [],
     "summaries": []
 }
+
+# Configure upload folders
+UPLOAD_FOLDER = 'uploaded_files'
+ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx', 'txt'}
+
+if not os.path.exists(UPLOAD_FOLDER):
+    os.makedirs(UPLOAD_FOLDER)
+
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 @app.route('/')
 def index():
@@ -81,6 +107,127 @@ def status():
         "pdfs_downloaded": len(results["pdfs_downloaded"]),
         "summaries": len(results["summaries"])
     })
+
+@app.route('/api/parse-script', methods=['POST'])
+def parse_script():
+    try:
+        if 'file' not in request.files:
+            return jsonify({
+                'success': False,
+                'message': 'Nie przesłano pliku'
+            }), 400
+
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({
+                'success': False,
+                'message': 'Nie wybrano pliku'
+            }), 400
+
+        if file and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            unique_filename = f"{timestamp}_{filename}"
+            filepath = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
+            file.save(filepath)
+
+            # Import ScriptController dynamically to avoid circular imports
+            from controllers.script_controller import ScriptController
+            script_controller = ScriptController()
+            
+            result = script_controller.parse_script(filepath)
+            
+            # Usuń plik po przetworzeniu
+            os.remove(filepath)
+            
+            return jsonify({
+                'success': True,
+                'message': 'Scenariusz został pomyślnie sparsowany',
+                'data': result
+            }), 200
+        else:
+            return jsonify({
+                'success': False,
+                'message': 'Niedozwolony typ pliku'
+            }), 400
+
+    except Exception as e:
+        logger.error(f"Błąd podczas parsowania scenariusza: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': 'Wystąpił błąd podczas parsowania scenariusza',
+            'error': str(e)
+        }), 500
+
+@app.route('/api/scripts', methods=['GET'])
+def get_scripts():
+    try:
+        from controllers.script_controller import ScriptController
+        script_controller = ScriptController()
+        return script_controller.get_scripts()
+    except Exception as e:
+        logger.error(f"Błąd podczas pobierania scenariuszy: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': 'Wystąpił błąd podczas pobierania scenariuszy',
+            'error': str(e)
+        }), 500
+
+@app.route('/api/scripts/<script_id>', methods=['GET'])
+def get_script(script_id):
+    try:
+        from controllers.script_controller import ScriptController
+        script_controller = ScriptController()
+        return script_controller.get_script_by_id(script_id)
+    except Exception as e:
+        logger.error(f"Błąd podczas pobierania scenariusza: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': 'Wystąpił błąd podczas pobierania scenariusza',
+            'error': str(e)
+        }), 500
+
+@app.route('/api/scripts/<script_id>', methods=['PUT'])
+def update_script(script_id):
+    try:
+        from controllers.script_controller import ScriptController
+        script_controller = ScriptController()
+        return script_controller.update_script(script_id, request.json)
+    except Exception as e:
+        logger.error(f"Błąd podczas aktualizacji scenariusza: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': 'Wystąpił błąd podczas aktualizacji scenariusza',
+            'error': str(e)
+        }), 500
+
+@app.route('/api/scripts/<script_id>', methods=['DELETE'])
+def delete_script(script_id):
+    try:
+        from controllers.script_controller import ScriptController
+        script_controller = ScriptController()
+        return script_controller.delete_script(script_id)
+    except Exception as e:
+        logger.error(f"Błąd podczas usuwania scenariusza: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': 'Wystąpił błąd podczas usuwania scenariusza',
+            'error': str(e)
+        }), 500
+
+@app.route('/api/scripts/<script_id>/statistics', methods=['GET'])
+def get_script_statistics(script_id):
+    try:
+        from controllers.script_controller import ScriptController
+        script_controller = ScriptController()
+        return script_controller.get_script_statistics(script_id)
+    except Exception as e:
+        logger.error(f"Błąd podczas pobierania statystyk: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': 'Wystąpił błąd podczas pobierania statystyk',
+            'error': str(e)
+        }), 500
 
 async def process_input(user_inputs, form_api_key=None, download_pdfs=True, crawl_depth=1):
     """Przetwarza dane wejściowe i uruchamia analizę."""
