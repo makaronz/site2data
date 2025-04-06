@@ -156,6 +156,110 @@ Film Production Assistant is a full-stack solution that addresses the challenges
 - Expanded mobile features with offline support
 - API for third-party integrations
 
+## Podsumowanie Ulepszenia Analizy Emocjonalnej
+
+### Zaimplementowane Funkcjonalności
+
+1. **Rozszerzony Analizator Emocji**
+   - Implementacja rozpoznawania 8 podstawowych emocji (złość, radość, smutek, strach, zaskoczenie, obrzydzenie, zaufanie, oczekiwanie)
+   - Własny słownik sentymentalny dla języka polskiego
+   - Zaawansowana analiza składniowa tekstu dla lepszego zrozumienia emocji
+
+2. **Analiza Kontekstu Scen**
+   - Śledzenie trendów emocjonalnych między scenami
+   - Identyfikacja głównych tematów i motywów
+   - Ocena znaczenia narracyjnego scen w kontekście całego scenariusza
+
+3. **Analiza Relacji Między Postaciami**
+   - Identyfikacja interakcji między postaciami na podstawie dialogów
+   - Klasyfikacja typów relacji (przyjacielska, napięta, wroga, neutralna)
+   - Analiza siły i dominującej emocji w relacjach
+   - Mapowanie wspólnych scen dla par postaci
+
+4. **REST API dla Zaawansowanej Analizy**
+   - Endpointy do analizy emocji scen: `/api/analysis/emotions/:scriptId/:sceneId`
+   - Endpointy do analizy relacji: `/api/analysis/relationships/:scriptId`
+   - Endpointy do analizy punktów zwrotnych: `/api/analysis/turningpoints/:scriptId`
+   - Endpointy do analizy postaci: `/api/analysis/character/:scriptId/:characterName`
+   - Pełna dokumentacja dostępna pod: `/api/docs`
+
+### Przykłady Użycia
+
+**Analiza Emocji w Scenie**
+```json
+{
+  "sceneNumber": "15",
+  "location": {
+    "type": "NIEOKREŚLONY",
+    "name": "PL. PARKING W OKOLICY STACJI BENZYNOWEJ"
+  },
+  "timeOfDay": "DZIEŃ",
+  "analysis": {
+    "emotions": {
+      "anger": 1.0,
+      "joy": 0.0,
+      "sadness": 0.0,
+      "fear": 0.0,
+      "surprise": 0.19,
+      "disgust": 0.0,
+      "trust": 0.0,
+      "anticipation": 0.0
+    },
+    "sentiment": {
+      "score": 0.0,
+      "sentiment": "neutralny",
+      "intensity": 0.0
+    },
+    "context": {
+      "emotionalTrend": "stabilny",
+      "thematicAnalysis": {
+        "dominantTheme": "conflict",
+        "keywords": [
+          { "word": "parking", "count": 3 },
+          { "word": "autobusowego", "count": 2 },
+          { "word": "samochody", "count": 2 }
+        ]
+      }
+    }
+  }
+}
+```
+
+**Analiza Relacji Między Postaciami**
+```json
+{
+  "scriptId": "DRUGA-FURIOZA",
+  "relationships": [
+    {
+      "characters": ["GOLDEN", "MRÓWKA"],
+      "type": "neutralna",
+      "strength": 1.0,
+      "sentiment": 0.0,
+      "scenes": ["12", "15", "55", "89", "97", "118", "134", "164"],
+      "dominantEmotion": "neutralna"
+    },
+    {
+      "characters": ["MRÓWKA", "BAUER"],
+      "type": "neutralna",
+      "strength": 1.0,
+      "sentiment": 0.0,
+      "scenes": ["12", "16", "52", "54", "164"],
+      "dominantEmotion": "neutralna"
+    }
+  ]
+}
+```
+
+### Dalszy Rozwój
+
+Planowane są następujące ulepszenia:
+
+1. Integracja modeli uczenia głębokiego dla jeszcze dokładniejszej analizy emocjonalnej
+2. Wizualizacja analizy emocjonalnej na wykresach i diagramach
+3. Analizator fabuły i łuku dramatycznego scenariusza
+4. Wykrywanie archetypów postaci na podstawie analizy dialogów i interakcji
+5. Integracja z narzędziami preprodukcyjnymi (np. automatyczne generowanie dokumentów produkcyjnych)
+
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.

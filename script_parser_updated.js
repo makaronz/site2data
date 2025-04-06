@@ -210,8 +210,17 @@ async function parseScript(filePath) {
       };
     }
 
+    // Analiza kontekstu scen
+    for (let scene of scenes) {
+      const sceneContext = await mlAnalyzer.analyzeSceneContext(scene, scenes);
+      scene.analysis.context = sceneContext;
+    }
+
     // Znajdź punkty zwrotne w całym scenariuszu
     const storyTurningPoints = await mlAnalyzer.analyzeTurningPoints(scenes);
+    
+    // Analiza relacji między postaciami
+    const characterRelationships = await mlAnalyzer.analyzeCharacterRelationships(scenes);
 
     // Zwróć wyniki w formacie JSON
     const result = {
@@ -232,6 +241,7 @@ async function parseScript(filePath) {
       })),
       analysis: {
         turningPoints: storyTurningPoints,
+        relationships: characterRelationships,
         globalStats: {
           totalScenes: scenes.length,
           averageIntensity: scenes.reduce((sum, scene) => sum + scene.analysis.sentiment.intensity, 0) / scenes.length,
