@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FilmForge AI - Analiza Scenariuszy</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .upload-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 2px dashed #ccc;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .file-list {
+            margin-top: 20px;
+        }
+        .file-item {
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .file-item:last-child {
+            border-bottom: none;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .results {
+            margin-top: 20px;
+            padding: 20px;
+            background-color: #f9f9f9;
+            border-radius: 8px;
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>FilmForge AI - Analiza Scenariuszy</h1>
+        
+        <div class="upload-section">
+            <h2>Prześlij scenariusz</h2>
+            <input type="file" id="scriptFile" accept=".pdf" style="display: none">
+            <button onclick="document.getElementById('scriptFile').click()">Wybierz plik PDF</button>
+            <p id="fileName"></p>
+            <button onclick="uploadScript()" id="uploadButton" disabled>Prześlij i analizuj</button>
+        </div>
+
+        <div class="loading" id="loading">
+            <p>Analizowanie scenariusza...</p>
+        </div>
+
+        <div class="results" id="results" style="display: none">
+            <h2>Wyniki analizy</h2>
+            <div id="analysisResults"></div>
+        </div>
+
+        <div class="file-list">
+            <h2>Ostatnio przeanalizowane scenariusze</h2>
+            <div id="fileList"></div>
+        </div>
+    </div>
+
+    <script>
+        const scriptFile = document.getElementById('scriptFile');
+        const uploadButton = document.getElementById('uploadButton');
+        const fileName = document.getElementById('fileName');
+        const loading = document.getElementById('loading');
+        const results = document.getElementById('results');
+        const analysisResults = document.getElementById('analysisResults');
+        const fileList = document.getElementById('fileList');
+
+        scriptFile.addEventListener('change', function(e) {
+            if (e.target.files.length > 0) {
+                fileName.textContent = e.target.files[0].name;
+                uploadButton.disabled = false;
+            }
+        });
+
+        async function uploadScript() {
+            const formData = new FormData();
+            formData.append('script', scriptFile.files[0]);
+
+            loading.style.display = 'block';
+            results.style.display = 'none';
+
+            try {
+                const response = await fetch('/api/parse-script', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+                displayResults(data);
+                loadFileList();
+            } catch (error) {
+                console.error('Błąd:', error);
+                alert('Wystąpił błąd podczas analizy scenariusza');
+            } finally {
+                loading.style.display = 'none';
+            }
+        }
+
+        function displayResults(data) {
+            results.style.display = 'block';
+            analysisResults.innerHTML = `
+                <h3>${data.title || 'Brak tytułu'}</h3>
+                <p>Liczba scen: ${data.metadata?.totalScenes || 0}</p>
+                <p>Liczba postaci: ${data.metadata?.uniqueCharacters?.length || 0}</p>
+                <p>Liczba dialogów: ${data.metadata?.totalDialogues || 0}</p>
+            `;
+        }
+
+        async function loadFileList() {
+            try {
+                const response = await fetch('/api/scripts');
+                const files = await response.json();
+                
+                fileList.innerHTML = files.map(file => `
+                    <div class="file-item">
+                        <span>${file.name}</span>
+                        <span>${new Date(file.date).toLocaleString()}</span>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Błąd:', error);
+            }
+        }
+
+        // Załaduj listę plików przy starcie
+        loadFileList();
+    </script>
+</body>
+</html> 

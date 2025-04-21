@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Site2Data</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container mt-5">
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <div class="card shadow">
+                    <div class="card-header bg-primary text-white">
+                        <h1 class="text-center">Site2Data</h1>
+                    </div>
+                    <div class="card-body">
+                        <form action="{{ url_for('process') }}" method="post">
+                            <div class="mb-3">
+                                <label for="input" class="form-label">Wprowadź URL, listę URL-i oddzielonych przecinkami lub ścieżkę do pliku/katalogu PDF:</label>
+                                <textarea class="form-control" id="input" name="input" rows="3" required></textarea>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="api_key" class="form-label">Klucz API OpenAI (opcjonalnie, jeśli nie jest ustawiony w pliku .env):</label>
+                                <input type="password" class="form-control" id="api_key" name="api_key" placeholder="sk-...">
+                                <div class="form-text">Twój klucz API jest używany tylko lokalnie i nie jest nigdzie przechowywany.</div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="crawl_depth" class="form-label">Głębokość crawlowania:</label>
+                                <select class="form-select" id="crawl_depth" name="crawl_depth">
+                                    <option value="1" selected>1 - tylko podana strona</option>
+                                    <option value="2">2 - strona i bezpośrednie linki</option>
+                                    <option value="3">3 - głębsze przeszukiwanie</option>
+                                    <option value="4">4 - bardzo głębokie przeszukiwanie</option>
+                                    <option value="5">5 - maksymalna głębokość (może trwać długo)</option>
+                                </select>
+                                <div class="form-text">Wyższa głębokość oznacza więcej odwiedzonych stron, ale dłuższy czas analizy.</div>
+                            </div>
+                            
+                            <div class="mb-3 form-check">
+                                <input type="checkbox" class="form-check-input" id="download_pdfs" name="download_pdfs" checked>
+                                <label class="form-check-label" for="download_pdfs">Pobieraj i analizuj pliki PDF</label>
+                            </div>
+                            
+                            <div class="d-grid gap-2">
+                                <button type="submit" class="btn btn-primary">Analizuj</button>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="card-footer text-muted">
+                        <p class="text-center mb-0">Aplikacja analizuje strony internetowe i pliki PDF, generując podsumowania z wykorzystaniem AI.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>

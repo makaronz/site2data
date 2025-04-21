@@ -1,0 +1,111 @@
+{
+    "title": "DRUGA FURIOZA",
+    "basic_analysis": {
+        "total_scenes": 2,
+        "scenes": [
+            {
+                "number": 1,
+                "location": "PL. AUTOSTRADA",
+                "time": "DZIEŃ",
+                "description": "Scena pościgu i walki na autostradzie"
+            },
+            {
+                "number": 2,
+                "location": "WZGÓRZE Z WIDOKIEM NA GDYNIĘ",
+                "time": "WCZESNY WIECZÓR",
+                "description": "Scena świętowania zwycięstwa"
+            }
+        ],
+        "characters": {
+            "main": ["GOLDEN", "DAWID"],
+            "supporting": ["OLO", "KRZYWY", "JEZUSEK", "BRAT DZIKIEJ", "BUŁA", "DZIKA", "MIMI"],
+            "background": ["kibole z mrowiska"]
+        },
+        "dialogue_statistics": {
+            "total_lines": 15,
+            "per_character": {
+                "GOLDEN": 4,
+                "DAWID": 3,
+                "KRZYWY": 2,
+                "OLO": 2,
+                "MIMI": 2,
+                "BUŁA": 2
+            }
+        }
+    },
+    "sentiment_analysis": {
+        "overall_tone": "aggressive/triumphant",
+        "character_emotions": {
+            "GOLDEN": {
+                "dominant_emotion": "anger/excitement",
+                "emotional_range": ["aggression", "triumph", "pride"],
+                "average_sentiment": -0.2
+            },
+            "DAWID": {
+                "dominant_emotion": "concern/excitement",
+                "emotional_range": ["excitement", "concern", "attraction"],
+                "average_sentiment": 0.1
+            },
+            "group": {
+                "dominant_emotion": "celebration",
+                "emotional_range": ["triumph", "joy", "aggression"],
+                "average_sentiment": 0.3
+            }
+        }
+    },
+    "structural_analysis": {
+        "plot_points": [
+            {
+                "type": "inciting_incident",
+                "description": "Pościg za samochodem przeciwników",
+                "scene": 1
+            },
+            {
+                "type": "climax",
+                "description": "Walka na autostradzie",
+                "scene": 1
+            },
+            {
+                "type": "resolution",
+                "description": "Świętowanie zwycięstwa",
+                "scene": 2
+            }
+        ],
+        "character_relationships": [
+            {
+                "characters": ["GOLDEN", "DAWID"],
+                "relationship_type": "close_friends/partners",
+                "interaction_strength": 0.9
+            },
+            {
+                "characters": ["DAWID", "DZIKA"],
+                "relationship_type": "romantic_interest",
+                "interaction_strength": 0.6
+            }
+        ],
+        "themes": [
+            {
+                "name": "przemoc/agresja",
+                "strength": 0.8
+            },
+            {
+                "name": "lojalność grupowa",
+                "strength": 0.7
+            },
+            {
+                "name": "rywalizacja",
+                "strength": 0.9
+            }
+        ]
+    },
+    "key_insights": {
+        "tone": "Scenariusz utrzymany jest w agresywnym, dynamicznym tonie z elementami młodzieńczej brawury",
+        "style": "Szybkie tempo, dynamiczne dialogi, brutalne sceny akcji",
+        "character_development": "Główni bohaterowie (Golden i Dawid) pokazani jako bliscy przyjaciele z różnymi podejściami do przemocy",
+        "potential_concerns": [
+            "Wysoki poziom przemocy",
+            "Gloryfikacja zachowań chuligańskich",
+            "Narkotyki pokazane jako element życia grupy"
+        ]
+    }
+} 

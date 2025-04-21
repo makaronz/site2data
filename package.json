@@ -1,0 +1,52 @@
+{
+  "name": "cinehub-ai",
+  "version": "1.0.0",
+  "description": "CineHubAI - Advanced Film Script Analysis and Production Management Platform",
+  "workspaces": [
+    "frontend/*",
+    "backend/lib/*"
+  ],
+  "scripts": {
+    "start": "node backend/src/server.js",
+    "dev": "nodemon backend/src/server.js",
+    "test": "jest",
+    "test:unit": "jest tests/unit",
+    "test:integration": "jest tests/integration",
+    "test:e2e": "jest tests/e2e",
+    "test:coverage": "jest --coverage",
+    "test:watch": "jest --watch",
+    "lint": "eslint .",
+    "format": "prettier --write \"**/*.{js,jsx,json,css,md}\"",
+    "prepare": "husky install"
+  },
+  "dependencies": {
+    "express": "^4.18.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "pdf-parse": "^1.1.1",
+    "axios": "^1.6.7",
+    "winston": "^3.12.0",
+    "express-rate-limit": "^7.2.0",
+    "helmet": "^7.1.0",
+    "@xenova/transformers": "^2.17.2",
+    "compromise": "^14.12.0",
+    "langchain": "^0.1.25",
+    "natural": "^6.10.4",
+    "node-nlp": "^4.27.0",
+    "mongoose": "^8.2.1",
+    "formidable": "^3.5.1"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "nodemon": "^3.1.0",
+    "eslint": "^8.57.0",
+    "prettier": "^3.2.5",
+    "supertest": "^6.3.4",
+    "husky": "^9.0.11",
+    "ts-jest": "^29.1.2",
+    "@types/jest": "^29.5.12"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+} 
