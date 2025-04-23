@@ -1,5 +1,5 @@
 ---
-description: rules to parse solution architecture from docs/architecture.md
+description: 
 globs: 
 alwaysApply: false
 ---

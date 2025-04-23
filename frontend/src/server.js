@@ -7,7 +7,7 @@ const { parseScript } = require('./script_parser_updated');
 require('dotenv').config();
 
 const app = express();
-const port = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3001;
 
 // Konfiguracja CORS
 app.use(cors({
@@ -21,64 +21,122 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Konfiguracja multer do obsługi uploadu plików
+// Tworzenie katalogów jeśli nie istnieją
+const UPLOAD_DIR = path.join(__dirname, 'uploads');
+const PUBLIC_DIR = path.join(__dirname, 'public');
+
+try {
+  fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+  fs.mkdirSync(PUBLIC_DIR, { recursive: true });
+} catch (error) {
+  console.error('Błąd podczas tworzenia katalogów:', error);
+}
+
+// Konfiguracja multer z walidacją
 const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    const uploadDir = path.join(__dirname, 'uploads');
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
-    cb(null, uploadDir);
+  destination: (req, file, cb) => {
+    cb(null, UPLOAD_DIR);
   },
-  filename: function (req, file, cb) {
-    cb(null, Date.now() + path.extname(file.originalname));
+  filename: (req, file, cb) => {
+    // Dodaj timestamp do nazwy pliku aby uniknąć konfliktów
+    const timestamp = Date.now();
+    cb(null, `${timestamp}-${file.originalname}`);
   }
 });
 
-const upload = multer({ 
+const fileFilter = (req, file, cb) => {
+  // Sprawdź typ MIME i rozszerzenie
+  const allowedTypes = ['application/pdf'];
+  const allowedExtensions = ['.pdf'];
+  
+  const mimeOk = allowedTypes.includes(file.mimetype);
+  const extOk = allowedExtensions.includes(path.extname(file.originalname).toLowerCase());
+  
+  if (mimeOk && extOk) {
+    cb(null, true);
+  } else {
+    cb(new Error('Niedozwolony typ pliku. Akceptowane są tylko pliki PDF.'), false);
+  }
+};
+
+const upload = multer({
   storage: storage,
-  limits: { fileSize: 50 * 1024 * 1024 } // limit do 50MB
+  fileFilter: fileFilter,
+  limits: {
+    fileSize: 10 * 1024 * 1024 // Limit 10MB
+  }
 });
 
-// Endpointy API
-app.post('/api/parse-script', upload.single('script'), async (req, res) => {
+// Czyszczenie starych plików (starszych niż 24h)
+const cleanupUploads = () => {
+  const files = fs.readdirSync(UPLOAD_DIR);
+  const now = Date.now();
+  const ONE_DAY = 24 * 60 * 60 * 1000;
+  
+  files.forEach(file => {
+    const filePath = path.join(UPLOAD_DIR, file);
+    const stats = fs.statSync(filePath);
+    if (now - stats.mtimeMs > ONE_DAY) {
+      fs.unlinkSync(filePath);
+      console.log(`Usunięto stary plik: ${file}`);
+    }
+  });
+};
+
+// Uruchom czyszczenie co 6 godzin
+setInterval(cleanupUploads, 6 * 60 * 60 * 1000);
+
+// Middleware do obsługi błędów multer
+const handleMulterError = (err, req, res, next) => {
+  if (err instanceof multer.MulterError) {
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({ error: 'Plik jest zbyt duży. Maksymalny rozmiar to 10MB.' });
+    }
+    return res.status(400).json({ error: `Błąd przesyłania pliku: ${err.message}` });
+  }
+  next(err);
+};
+
+// Endpoint do przesyłania plików
+app.post('/api/upload', upload.single('script'), handleMulterError, (req, res) => {
   try {
     if (!req.file) {
-      return res.status(400).json({ error: 'Brak pliku scenariusza' });
+      return res.status(400).json({ error: 'Nie przesłano pliku' });
     }
-
-    const result = await parseScript(req.file.path);
-    res.json(result);
+    
+    res.json({
+      message: 'Plik został przesłany pomyślnie',
+      filename: req.file.filename,
+      path: req.file.path
+    });
   } catch (error) {
-    console.error('Błąd podczas parsowania:', error);
-    res.status(500).json({ error: 'Błąd podczas parsowania scenariusza' });
+    console.error('Błąd podczas przesyłania pliku:', error);
+    res.status(500).json({ error: 'Wystąpił błąd podczas przesyłania pliku' });
   }
 });
 
-app.get('/api/scripts', async (req, res) => {
+// Endpoint do listowania przesłanych plików
+app.get('/api/scripts', (req, res) => {
   try {
-    const uploadDir = path.join(__dirname, 'uploads');
-    let files = [];
-    
-    if (fs.existsSync(uploadDir)) {
-      files = fs.readdirSync(uploadDir)
-        .filter(file => file.endsWith('.pdf'))
-        .map(file => {
-          const filePath = path.join(uploadDir, file);
-          const stats = fs.statSync(filePath);
-          return {
-            name: file,
-            path: filePath,
-            date: stats.mtime
-          };
-        });
-    }
+    const files = fs.readdirSync(UPLOAD_DIR)
+      .filter(file => path.extname(file).toLowerCase() === '.pdf')
+      .map(file => ({
+        name: file,
+        path: path.join(UPLOAD_DIR, file),
+        uploadTime: fs.statSync(path.join(UPLOAD_DIR, file)).mtime
+      }));
     
     res.json(files);
   } catch (error) {
-    console.error('Błąd podczas pobierania listy scenariuszy:', error);
-    res.status(500).json({ error: 'Błąd podczas pobierania listy scenariuszy' });
+    console.error('Błąd podczas listowania plików:', error);
+    res.status(500).json({ error: 'Wystąpił błąd podczas listowania plików' });
   }
+});
+
+// Obsługa błędów
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({ error: 'Wystąpił błąd serwera' });
 });
 
 // Obsługa SPA
@@ -86,6 +144,8 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-app.listen(port, () => {
-  console.log(`Serwer uruchomiony na porcie ${port}`);
+app.listen(PORT, () => {
+  console.log(`Serwer działa na porcie ${PORT}`);
+  console.log(`Katalog uploadów: ${UPLOAD_DIR}`);
+  console.log(`Katalog publiczny: ${PUBLIC_DIR}`);
 }); 

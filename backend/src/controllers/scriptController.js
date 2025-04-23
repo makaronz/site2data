@@ -202,4 +202,16 @@ class ScriptController {
   }
 }
 
-module.exports = new ScriptController(); 
+const testParse = (req, res) => {
+  try {
+    res.status(200).json({ message: 'Script parser test endpoint' });
+  } catch (error) {
+    console.error('Error in script parser test:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+module.exports = {
+  testParse,
+  ...new ScriptController()
+}; 

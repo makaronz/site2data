@@ -1,0 +1,9 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import "@tailwindcss/postcss/preflight";
+@import "@tailwindcss/postcss/utilities";
+
+@import '@tailwindcss/forms';
+@import '@tailwindcss/typography';
