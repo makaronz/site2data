@@ -22,7 +22,8 @@ class ScriptController {
         });
       }
 
-      const parsedScript = await ScriptParser.parse(filePath);
+      const scriptParser = new ScriptParser();
+      const parsedScript = await scriptParser.parse(filePath);
       
       // Zapisz sparsowany scenariusz w bazie danych
       const script = new Script(parsedScript);
@@ -202,16 +203,4 @@ class ScriptController {
   }
 }
 
-const testParse = (req, res) => {
-  try {
-    res.status(200).json({ message: 'Script parser test endpoint' });
-  } catch (error) {
-    console.error('Error in script parser test:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-};
-
-module.exports = {
-  testParse,
-  ...new ScriptController()
-}; 
+module.exports = new ScriptController();

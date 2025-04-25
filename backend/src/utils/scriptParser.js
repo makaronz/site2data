@@ -1,7 +1,14 @@
 const pdfParse = require('pdf-parse');
 const fs = require('fs');
 
+/**
+ * Klasa odpowiedzialna za parsowanie scenariuszy filmowych z plików PDF.
+ * Obsługuje różne formaty scenariuszy i ekstrahuje sceny, postacie, dialogi, rekwizyty, pojazdy, statystów i specjalne wymagania.
+ */
 class ScriptParser {
+  /**
+   * Inicjalizuje parser z wzorcami do rozpoznawania różnych elementów scenariusza.
+   */
   constructor() {
     // Wzorce do rozpoznawania różnych formatów scenariuszy
     this.patterns = {
@@ -26,7 +33,21 @@ class ScriptParser {
     };
   }
 
+  /**
+   * Parsuje plik scenariusza i zwraca strukturę danych reprezentującą scenariusz.
+   * @param {string} filePath - Ścieżka do pliku PDF ze scenariuszem.
+   * @returns {Promise<Object>} - Obiekt reprezentujący sparsowany scenariusz.
+   * @throws {Error} - Błąd, jeśli plik nie istnieje lub nie może być sparsowany.
+   */
   async parse(filePath) {
+    if (!filePath) {
+      throw new Error('Nie podano ścieżki do pliku scenariusza');
+    }
+
+    if (!fs.existsSync(filePath)) {
+      throw new Error('Plik scenariusza nie istnieje');
+    }
+
     try {
       const dataBuffer = fs.readFileSync(filePath);
       const data = await pdfParse(dataBuffer);
@@ -36,6 +57,10 @@ class ScriptParser {
         .split('\n')
         .map(line => line.trim())
         .filter(line => line.length > 0);
+
+      if (lines.length === 0) {
+        throw new Error('Plik scenariusza jest pusty');
+      }
 
       // Wykrywanie formatu scenariusza na podstawie pierwszych 100 linii
       const format = this._detectScriptFormat(lines.slice(0, 100));
@@ -74,10 +99,16 @@ class ScriptParser {
       };
     } catch (error) {
       console.error('Błąd podczas parsowania:', error);
-      throw error;
+      throw new Error(`Błąd podczas parsowania scenariusza: ${error.message}`);
     }
   }
 
+  /**
+   * Wykrywa format scenariusza na podstawie próbki linii.
+   * @param {string[]} lines - Próbka linii ze scenariusza.
+   * @returns {string} - Wykryty format scenariusza ('standard' lub 'location-time-number').
+   * @private
+   */
   _detectScriptFormat(lines) {
     // Sprawdza format na podstawie próbki linii
     let standardFormatCount = 0;
@@ -109,6 +140,12 @@ class ScriptParser {
     return 'standard'; // Domyślnie zwróć standardowy format
   }
 
+  /**
+   * Parsuje scenariusz w standardowym formacie (numer sceny + INT/EXT + lokacja + pora dnia).
+   * @param {string[]} lines - Linie ze scenariusza.
+   * @returns {Object[]} - Tablica obiektów reprezentujących sceny.
+   * @private
+   */
   _parseStandardFormat(lines) {
     const scenes = [];
     let currentScene = null;
@@ -133,76 +170,19 @@ class ScriptParser {
           description = [];
         }
         
-        currentScene = {
+        currentScene = this._createNewScene({
           sceneNumber: sceneMatch[1],
-          location: {
-            type: sceneMatch[2].trim(),
-            name: sceneMatch[3].trim()
-          },
-          timeOfDay: sceneMatch[4],
-          cast: new Set(),
-          dialogue: [],
-          props: [],
-          vehicles: [],
-          extras: [],
-          specialRequirements: []
-        };
+          locationType: sceneMatch[2].trim(),
+          locationName: sceneMatch[3].trim(),
+          timeOfDay: sceneMatch[4]
+        });
         continue;
       }
 
       if (!currentScene) continue;
 
-      // Sprawdź postacie i dialogi
-      const characterMatch = line.match(this.patterns.character);
-      const dialogueMatch = line.match(this.patterns.dialogue);
-      const propMatch = line.match(this.patterns.prop);
-      const vehicleMatch = line.match(this.patterns.vehicle);
-      const extrasMatch = line.match(this.patterns.extras);
-      const specialMatch = line.match(this.patterns.special);
-
-      if (characterMatch && !line.includes(':')) {
-        currentScene.cast.add(characterMatch[1].trim());
-      } else if (dialogueMatch) {
-        currentScene.cast.add(dialogueMatch[1].trim());
-        currentScene.dialogue.push({
-          character: dialogueMatch[1].trim(),
-          text: dialogueMatch[2].trim()
-        });
-      } else if (propMatch) {
-        const props = propMatch[1].split(',').map(prop => {
-          const [name, ...desc] = prop.trim().split(/\s+/);
-          return {
-            name: name,
-            description: desc.join(' '),
-            quantity: 1
-          };
-        });
-        currentScene.props.push(...props);
-      } else if (vehicleMatch) {
-        const vehicles = vehicleMatch[1].split(',').map(vehicle => {
-          const [type, ...desc] = vehicle.trim().split(/\s+/);
-          return {
-            type: type,
-            description: desc.join(' '),
-            quantity: 1
-          };
-        });
-        currentScene.vehicles.push(...vehicles);
-      } else if (extrasMatch) {
-        const extras = extrasMatch[1].split(',').map(extra => {
-          const parts = extra.trim().match(/(\d+)?\s*(.+)/);
-          return {
-            type: parts[2],
-            quantity: parts[1] ? parseInt(parts[1]) : 1,
-            description: ''
-          };
-        });
-        currentScene.extras.push(...extras);
-      } else if (specialMatch) {
-        currentScene.specialRequirements.push(specialMatch[1].trim());
-      } else {
-        description.push(line);
-      }
+      // Przetwarzanie linii w kontekście bieżącej sceny
+      this._processSceneLine(line, currentScene, description);
     }
 
     // Dodaj ostatnią scenę
@@ -219,6 +199,12 @@ class ScriptParser {
     return scenes;
   }
 
+  /**
+   * Parsuje scenariusz w formacie "lokacja - pora dnia" + numer sceny.
+   * @param {string[]} lines - Linie ze scenariusza.
+   * @returns {Object[]} - Tablica obiektów reprezentujących sceny.
+   * @private
+   */
   _parseLocationTimeNumberFormat(lines) {
     const scenes = [];
     let currentScene = null;
@@ -252,20 +238,12 @@ class ScriptParser {
           
           const sceneNumber = sceneNumberMatch[1];
           
-          currentScene = {
+          currentScene = this._createNewScene({
             sceneNumber: sceneNumber,
-            location: {
-              type: 'NIEOKREŚLONY',  // W tym formacie nie mamy wyraźnie określonego typu (INT/EXT)
-              name: potentialLocation
-            },
-            timeOfDay: potentialTimeOfDay,
-            cast: new Set(),
-            dialogue: [],
-            props: [],
-            vehicles: [],
-            extras: [],
-            specialRequirements: []
-          };
+            locationType: 'NIEOKREŚLONY',
+            locationName: potentialLocation,
+            timeOfDay: potentialTimeOfDay
+          });
           
           waitingForSceneNumber = false;
           continue;
@@ -277,68 +255,16 @@ class ScriptParser {
         continue;
       }
 
-      // Sprawdź postacie i dialogi
-      const characterMatch = line.match(this.patterns.character);
-      const dialogueMatch = line.match(this.patterns.dialogue);
-      const propMatch = line.match(this.patterns.prop);
-      const vehicleMatch = line.match(this.patterns.vehicle);
-      const extrasMatch = line.match(this.patterns.extras);
-      const specialMatch = line.match(this.patterns.special);
-
-      if (characterMatch && !line.includes(':')) {
-        const character = characterMatch[1].trim();
-        currentScene.cast.add(character);
-        
-        // Sprawdź czy następna linia to dialog tej postaci
-        if (i + 1 < lines.length && !lines[i + 1].match(this.patterns.character)) {
-          currentScene.dialogue.push({
-            character: character,
-            text: lines[i + 1].trim()
-          });
-          i++; // Przeskocz następną linię, bo już ją przetworzyliśmy
-        }
-      } else if (dialogueMatch) {
-        const character = dialogueMatch[1].trim();
-        const text = dialogueMatch[2].trim();
-        currentScene.cast.add(character);
+      // Przetwarzanie linii w kontekście bieżącej sceny
+      const result = this._processSceneLine(line, currentScene, description);
+      
+      // Specjalna obsługa dla formatu location-time-number
+      if (result.isCharacter && i + 1 < lines.length && !this._isCharacterLine(lines[i + 1])) {
         currentScene.dialogue.push({
-          character: character,
-          text: text
+          character: result.character,
+          text: lines[i + 1].trim()
         });
-      } else if (propMatch) {
-        const props = propMatch[1].split(',').map(prop => {
-          const [name, ...desc] = prop.trim().split(/\s+/);
-          return {
-            name: name,
-            description: desc.join(' '),
-            quantity: 1
-          };
-        });
-        currentScene.props.push(...props);
-      } else if (vehicleMatch) {
-        const vehicles = vehicleMatch[1].split(',').map(vehicle => {
-          const [type, ...desc] = vehicle.trim().split(/\s+/);
-          return {
-            type: type,
-            description: desc.join(' '),
-            quantity: 1
-          };
-        });
-        currentScene.vehicles.push(...vehicles);
-      } else if (extrasMatch) {
-        const extras = extrasMatch[1].split(',').map(extra => {
-          const parts = extra.trim().match(/(\d+)?\s*(.+)/);
-          return {
-            type: parts[2],
-            quantity: parts[1] ? parseInt(parts[1]) : 1,
-            description: ''
-          };
-        });
-        currentScene.extras.push(...extras);
-      } else if (specialMatch) {
-        currentScene.specialRequirements.push(specialMatch[1].trim());
-      } else {
-        description.push(line);
+        i++; // Przeskocz następną linię, bo już ją przetworzyliśmy
       }
     }
 
@@ -356,6 +282,119 @@ class ScriptParser {
     return scenes;
   }
 
+  /**
+   * Tworzy nowy obiekt sceny.
+   * @param {Object} params - Parametry sceny.
+   * @param {string} params.sceneNumber - Numer sceny.
+   * @param {string} params.locationType - Typ lokacji (INT/EXT).
+   * @param {string} params.locationName - Nazwa lokacji.
+   * @param {string} params.timeOfDay - Pora dnia.
+   * @returns {Object} - Nowy obiekt sceny.
+   * @private
+   */
+  _createNewScene({ sceneNumber, locationType, locationName, timeOfDay }) {
+    return {
+      sceneNumber: sceneNumber,
+      location: {
+        type: locationType,
+        name: locationName
+      },
+      timeOfDay: timeOfDay,
+      cast: new Set(),
+      dialogue: [],
+      props: [],
+      vehicles: [],
+      extras: [],
+      specialRequirements: []
+    };
+  }
+
+  /**
+   * Sprawdza, czy linia zawiera postać.
+   * @param {string} line - Linia do sprawdzenia.
+   * @returns {boolean} - Czy linia zawiera postać.
+   * @private
+   */
+  _isCharacterLine(line) {
+    return this.patterns.character.test(line) || this.patterns.dialogue.test(line);
+  }
+
+  /**
+   * Przetwarza linię w kontekście bieżącej sceny.
+   * @param {string} line - Linia do przetworzenia.
+   * @param {Object} currentScene - Bieżąca scena.
+   * @param {string[]} description - Tablica linii opisu.
+   * @returns {Object} - Obiekt z informacją, czy linia zawiera postać i jaka to postać.
+   * @private
+   */
+  _processSceneLine(line, currentScene, description) {
+    const result = { isCharacter: false, character: null };
+    
+    // Sprawdź postacie i dialogi
+    const characterMatch = line.match(this.patterns.character);
+    const dialogueMatch = line.match(this.patterns.dialogue);
+    const propMatch = line.match(this.patterns.prop);
+    const vehicleMatch = line.match(this.patterns.vehicle);
+    const extrasMatch = line.match(this.patterns.extras);
+    const specialMatch = line.match(this.patterns.special);
+
+    if (characterMatch && !line.includes(':')) {
+      const character = characterMatch[1].trim();
+      currentScene.cast.add(character);
+      result.isCharacter = true;
+      result.character = character;
+    } else if (dialogueMatch) {
+      const character = dialogueMatch[1].trim();
+      const text = dialogueMatch[2].trim();
+      currentScene.cast.add(character);
+      currentScene.dialogue.push({
+        character: character,
+        text: text
+      });
+    } else if (propMatch) {
+      const props = propMatch[1].split(',').map(prop => {
+        const [name, ...desc] = prop.trim().split(/\s+/);
+        return {
+          name: name,
+          description: desc.join(' '),
+          quantity: 1
+        };
+      });
+      currentScene.props.push(...props);
+    } else if (vehicleMatch) {
+      const vehicles = vehicleMatch[1].split(',').map(vehicle => {
+        const [type, ...desc] = vehicle.trim().split(/\s+/);
+        return {
+          type: type,
+          description: desc.join(' '),
+          quantity: 1
+        };
+      });
+      currentScene.vehicles.push(...vehicles);
+    } else if (extrasMatch) {
+      const extras = extrasMatch[1].split(',').map(extra => {
+        const parts = extra.trim().match(/(\d+)?\s*(.+)/);
+        return {
+          type: parts[2],
+          quantity: parts[1] ? parseInt(parts[1]) : 1,
+          description: ''
+        };
+      });
+      currentScene.extras.push(...extras);
+    } else if (specialMatch) {
+      currentScene.specialRequirements.push(specialMatch[1].trim());
+    } else {
+      description.push(line);
+    }
+
+    return result;
+  }
+
+  /**
+   * Ekstrahuje tytuł scenariusza z pierwszych linii.
+   * @param {string[]} lines - Linie ze scenariusza.
+   * @returns {string} - Tytuł scenariusza.
+   */
   extractTitle(lines) {
     // Próba znalezienia tytułu w pierwszych liniach
     for (let i = 0; i < Math.min(10, lines.length); i++) {
@@ -366,6 +405,11 @@ class ScriptParser {
     return 'Untitled Script';
   }
 
+  /**
+   * Ekstrahuje wersję scenariusza z pierwszych linii.
+   * @param {string[]} lines - Linie ze scenariusza.
+   * @returns {string} - Wersja scenariusza.
+   */
   extractVersion(lines) {
     // Próba znalezienia wersji w pierwszych liniach
     const versionPattern = /(?:wersja|version|v\.?)\s*[:.]?\s*([\d\.]+)/i;
@@ -379,4 +423,4 @@ class ScriptParser {
   }
 }
 
-module.exports = new ScriptParser(); 
+module.exports = ScriptParser;
