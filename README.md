@@ -1,86 +1,86 @@
 # Site2Data 🌐
 
-Site2Data to zaawansowana platforma do analizy i przetwarzania treści internetowych, wykorzystująca sztuczną inteligencję i uczenie maszynowe do ekstrakcji, analizy i transformacji danych z różnych źródeł internetowych.
+Site2Data is an advanced platform for web content analysis and processing, leveraging artificial intelligence and machine learning for data extraction, analysis, and transformation from various internet sources.
 
-## Główne Funkcje 🌟
+## Key Features 🌟
 
-- **Zaawansowana Analiza ML**: Wykorzystanie najnowszych modeli uczenia maszynowego do analizy treści
-- **Ekstrakcja Danych**: Inteligentne wydobywanie danych z różnych formatów (PDF, HTML, tekst)
-- **Przetwarzanie NLP**: Zaawansowane przetwarzanie języka naturalnego z wykorzystaniem bibliotek compromise i node-nlp
-- **Analiza w Czasie Rzeczywistym**: Przetwarzanie danych w czasie rzeczywistym z wykorzystaniem Socket.IO
-- **Bezpieczna Architektura**: Implementacja zabezpieczeń z użyciem Helmet i rate-limiting
-- **Skalowalność**: Wsparcie dla konteneryzacji z Docker i zarządzanie zależnościami poprzez workspaces
+- **Advanced ML Analysis**: Utilization of cutting-edge machine learning models for content analysis
+- **Data Extraction**: Intelligent data extraction from various formats (PDF, HTML, text)
+- **NLP Processing**: Advanced natural language processing using compromise and node-nlp libraries
+- **Real-time Analysis**: Real-time data processing using Socket.IO
+- **Secure Architecture**: Security implementation using Helmet and rate-limiting
+- **Scalability**: Docker containerization support and workspace dependency management
 
-## Wymagania Techniczne 🔧
+## Technical Requirements 🔧
 
-- Node.js (v18 lub wyższy)
+- Node.js (v18 or higher)
 - MongoDB
-- Docker (opcjonalnie)
+- Docker (optional)
 
-### Instalacja
+### Installation
 
-1. Sklonuj repozytorium:
+1. Clone the repository:
 ```bash
 git clone https://github.com/yourusername/site2data.git
 cd site2data
 ```
 
-2. Zainstaluj zależności:
+2. Install dependencies:
 ```bash
 npm install
 ```
 
-3. Skonfiguruj zmienne środowiskowe:
+3. Configure environment variables:
 ```bash
 cp .env.example .env
-# Edytuj plik .env zgodnie z Twoją konfiguracją
+# Edit .env file according to your configuration
 ```
 
-4. Uruchom aplikację:
+4. Run the application:
 ```bash
-# Tryb deweloperski
+# Development mode
 npm run dev
 
-# Tryb produkcyjny
+# Production mode
 npm start
 ```
 
-## Dostępne Skrypty 📜
+## Available Scripts 📜
 
-- `npm start` - Uruchomienie aplikacji
-- `npm run dev` - Uruchomienie w trybie deweloperskim z hot-reloadingiem
-- `npm test` - Uruchomienie testów
-- `npm run lint` - Sprawdzenie kodu pod kątem błędów
-- `npm run format` - Formatowanie kodu
+- `npm start` - Run the application
+- `npm run dev` - Run in development mode with hot-reloading
+- `npm test` - Run tests
+- `npm run lint` - Check code for errors
+- `npm run format` - Format code
 
-## Struktura Projektu 📁
+## Project Structure 📁
 
-- `/frontend` - Aplikacja frontendowa
-- `/backend` - Serwer Node.js
-- `/tests` - Testy jednostkowe i integracyjne
-- `/docs` - Dokumentacja
-- `/tasks` - Definicje zadań i procesów
-- `/templates` - Szablony
-- `/resources` - Zasoby statyczne
+- `/frontend` - Frontend application
+- `/backend` - Node.js server
+- `/tests` - Unit and integration tests
+- `/docs` - Documentation
+- `/tasks` - Task and process definitions
+- `/templates` - Templates
+- `/resources` - Static resources
 
-## Technologie 💻
+## Technologies 💻
 
 - **Backend**: Node.js, Express, MongoDB
 - **ML/AI**: Transformers, LangChain, Natural
-- **Narzędzia**: Jest, ESLint, Prettier
-- **Bezpieczeństwo**: Helmet, Express Rate Limit
+- **Tools**: Jest, ESLint, Prettier
+- **Security**: Helmet, Express Rate Limit
 - **UI**: TailwindCSS
 
-## Wsparcie 💬
+## Support 💬
 
-W przypadku pytań lub problemów:
-- Otwórz Issue na GitHubie
-- Sprawdź dokumentację w katalogu `/docs`
-- Skontaktuj się z zespołem deweloperskim
+If you have questions or issues:
+- Open an Issue on GitHub
+- Check documentation in the `/docs` directory
+- Contact the development team
 
-## Licencja 📄
+## License 📄
 
-Ten projekt jest licencjonowany na podstawie licencji MIT - szczegóły w pliku [LICENSE](LICENSE).
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ---
 
