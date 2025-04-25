@@ -1,79 +1,87 @@
-# CineHubAI 🎬
+# Site2Data 🌐
 
-CineHubAI is an innovative AI-powered platform that helps users discover, analyze, and engage with movies and TV shows. By leveraging artificial intelligence and machine learning, CineHubAI provides personalized recommendations, detailed content analysis, and an interactive community experience.
+Site2Data to zaawansowana platforma do analizy i przetwarzania treści internetowych, wykorzystująca sztuczną inteligencję i uczenie maszynowe do ekstrakcji, analizy i transformacji danych z różnych źródeł internetowych.
 
-## Features 🌟
+## Główne Funkcje 🌟
 
-- **AI-Powered Recommendations**: Get personalized movie and TV show suggestions based on your viewing history and preferences
-- **Content Analysis**: Deep dive into themes, plot patterns, and character development using advanced AI analysis
-- **Community Engagement**: Share reviews, create watchlists, and connect with other movie enthusiasts
-- **Real-time Updates**: Stay informed about new releases and trending content
-- **Cross-platform Support**: Access CineHubAI on web and mobile devices
+- **Zaawansowana Analiza ML**: Wykorzystanie najnowszych modeli uczenia maszynowego do analizy treści
+- **Ekstrakcja Danych**: Inteligentne wydobywanie danych z różnych formatów (PDF, HTML, tekst)
+- **Przetwarzanie NLP**: Zaawansowane przetwarzanie języka naturalnego z wykorzystaniem bibliotek compromise i node-nlp
+- **Analiza w Czasie Rzeczywistym**: Przetwarzanie danych w czasie rzeczywistym z wykorzystaniem Socket.IO
+- **Bezpieczna Architektura**: Implementacja zabezpieczeń z użyciem Helmet i rate-limiting
+- **Skalowalność**: Wsparcie dla konteneryzacji z Docker i zarządzanie zależnościami poprzez workspaces
 
-## Getting Started 🚀
+## Wymagania Techniczne 🔧
 
-### Prerequisites
-
-- Node.js (v18 or higher)
-- Python (v3.9 or higher)
+- Node.js (v18 lub wyższy)
 - MongoDB
-- Docker (optional)
+- Docker (opcjonalnie)
 
-### Installation
+### Instalacja
 
-1. Clone the repository:
+1. Sklonuj repozytorium:
 ```bash
-git clone https://github.com/yourusername/CineHubAI.git
-cd CineHubAI
+git clone https://github.com/yourusername/site2data.git
+cd site2data
 ```
 
-2. Install dependencies:
+2. Zainstaluj zależności:
 ```bash
-# Frontend
-cd frontend
 npm install
-
-# Backend
-cd ../backend
-pip install -r requirements.txt
 ```
 
-3. Set up environment variables:
+3. Skonfiguruj zmienne środowiskowe:
 ```bash
 cp .env.example .env
-# Edit .env with your configuration
+# Edytuj plik .env zgodnie z Twoją konfiguracją
 ```
 
-4. Start the development servers:
+4. Uruchom aplikację:
 ```bash
-# Frontend
+# Tryb deweloperski
 npm run dev
 
-# Backend
-python manage.py runserver
+# Tryb produkcyjny
+npm start
 ```
 
-## Contributing 🤝
+## Dostępne Skrypty 📜
 
-We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for details on how to submit pull requests, report bugs, and contribute to the project.
+- `npm start` - Uruchomienie aplikacji
+- `npm run dev` - Uruchomienie w trybie deweloperskim z hot-reloadingiem
+- `npm test` - Uruchomienie testów
+- `npm run lint` - Sprawdzenie kodu pod kątem błędów
+- `npm run format` - Formatowanie kodu
 
-## License 📄
+## Struktura Projektu 📁
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+- `/frontend` - Aplikacja frontendowa
+- `/backend` - Serwer Node.js
+- `/tests` - Testy jednostkowe i integracyjne
+- `/docs` - Dokumentacja
+- `/tasks` - Definicje zadań i procesów
+- `/templates` - Szablony
+- `/resources` - Zasoby statyczne
 
-## Support 💬
+## Technologie 💻
 
-If you have any questions or need help, please:
-- Open an issue on GitHub
-- Join our Discord community
-- Contact us through our website
+- **Backend**: Node.js, Express, MongoDB
+- **ML/AI**: Transformers, LangChain, Natural
+- **Narzędzia**: Jest, ESLint, Prettier
+- **Bezpieczeństwo**: Helmet, Express Rate Limit
+- **UI**: TailwindCSS
 
-## Acknowledgments 🙏
+## Wsparcie 💬
 
-- Thanks to all contributors who have helped shape CineHubAI
-- Special thanks to the open-source community for their invaluable tools and libraries
-- Movie data provided by TMDB API
+W przypadku pytań lub problemów:
+- Otwórz Issue na GitHubie
+- Sprawdź dokumentację w katalogu `/docs`
+- Skontaktuj się z zespołem deweloperskim
+
+## Licencja 📄
+
+Ten projekt jest licencjonowany na podstawie licencji MIT - szczegóły w pliku [LICENSE](LICENSE).
 
 ---
 
-Made with ❤️ by the CineHubAI Team
+Made with �� by Site2Data Team
