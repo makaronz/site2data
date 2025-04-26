@@ -1,5 +1,7 @@
 import React, { useState, useRef } from 'react';
 import axios from 'axios';
+import { Box, Paper, Typography, Button, CircularProgress, Alert } from '@mui/material';
+import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 
 interface PDFUploadProps {
   onUploadSuccess: (text: string) => void;
@@ -40,36 +42,26 @@ const PDFUpload: React.FC<PDFUploadProps> = ({ onUploadSuccess, onUploadError })
 
   const handleFileUpload = async (file: File) => {
     setErrorMessage(null);
-    
     if (file.type !== 'application/pdf') {
       const error = 'Proszę wybrać plik PDF';
       setErrorMessage(error);
       onUploadError(error);
       return;
     }
-
     try {
       setIsUploading(true);
       const formData = new FormData();
       formData.append('pdf', file);
-
-      console.log('Wysyłanie pliku do:', '/api/upload-pdf');
       const response = await axios.post('/api/upload-pdf', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-        timeout: 300000, // 5 minut timeout
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 300000,
       });
-
-      console.log('Odpowiedź serwera:', response.data);
-      
       if (response.data.success && response.data.text) {
         onUploadSuccess(response.data.text);
       } else {
         throw new Error(response.data.message || 'Nie udało się przetworzyć pliku PDF');
       }
     } catch (error) {
-      console.error('Błąd podczas przesyłania:', error);
       const errorMsg = error instanceof Error 
         ? error.message 
         : 'Wystąpił błąd podczas przesyłania pliku';
@@ -81,15 +73,25 @@ const PDFUpload: React.FC<PDFUploadProps> = ({ onUploadSuccess, onUploadError })
   };
 
   return (
-    <div className="space-y-4">
-      <div
-        className={`p-6 border-2 border-dashed rounded-lg text-center cursor-pointer
-          ${isDragging ? 'border-blue-500 bg-blue-50' : 'border-gray-300'}
-          ${isUploading ? 'opacity-50 cursor-wait' : ''}`}
+    <Box sx={{ width: '100%' }}>
+      <Paper
+        elevation={isDragging ? 6 : 2}
+        sx={{
+          p: 4,
+          border: '2px dashed',
+          borderColor: isDragging ? 'primary.main' : 'grey.400',
+          bgcolor: isDragging ? 'grey.100' : 'background.paper',
+          textAlign: 'center',
+          cursor: isUploading ? 'wait' : 'pointer',
+          opacity: isUploading ? 0.5 : 1,
+          outline: isDragging ? '2px solid' : 'none',
+          outlineColor: isDragging ? 'primary.main' : 'none',
+          transition: 'border-color 0.2s, outline 0.2s',
+        }}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
-        onClick={() => fileInputRef.current?.click()}
+        onClick={() => !isUploading && fileInputRef.current?.click()}
         role="button"
         aria-label="Obszar przesyłania pliku PDF"
         tabIndex={0}
@@ -99,42 +101,31 @@ const PDFUpload: React.FC<PDFUploadProps> = ({ onUploadSuccess, onUploadError })
           ref={fileInputRef}
           onChange={handleFileSelect}
           accept=".pdf"
-          className="hidden"
+          style={{ display: 'none' }}
           aria-label="Wybierz plik PDF"
         />
-        <div className="space-y-2">
-          <svg
-            className="mx-auto h-12 w-12 text-gray-400"
-            stroke="currentColor"
-            fill="none"
-            viewBox="0 0 48 48"
-            aria-hidden="true"
-          >
-            <path
-              d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02"
-              strokeWidth={2}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-          <div className="text-gray-600">
-            {isUploading ? (
-              'Przesyłanie pliku...'
-            ) : (
-              <>
-                <p>Przeciągnij i upuść plik PDF tutaj</p>
-                <p className="text-sm">lub kliknij, aby wybrać</p>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
+        <Box sx={{ mb: 2 }}>
+          <PictureAsPdfIcon sx={{ fontSize: 48, color: 'grey.400' }} />
+        </Box>
+        <Typography color="text.secondary">
+          {isUploading ? (
+            <>
+              <CircularProgress size={20} sx={{ mr: 1 }} /> Przesyłanie pliku...
+            </>
+          ) : (
+            <>
+              Przeciągnij i upuść plik PDF tutaj
+              <Typography variant="body2" color="text.disabled">lub kliknij, aby wybrać</Typography>
+            </>
+          )}
+        </Typography>
+      </Paper>
       {errorMessage && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
+        <Alert severity="error" sx={{ mt: 2 }}>
           {errorMessage}
-        </div>
+        </Alert>
       )}
-    </div>
+    </Box>
   );
 };
 

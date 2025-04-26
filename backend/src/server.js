@@ -1,17 +1,23 @@
 import express from 'express';
 import cors from 'cors';
 import multer from 'multer';
+import { createServer } from 'http';
+import { WebSocketManager } from './websocket/server.js';
 import { PDFValidator } from './utils/pdfValidator.js';
 import { ModernScriptParser } from './utils/scriptParser.js';
 
 const app = express();
+const server = createServer(app);
 const upload = multer({ dest: 'uploads/' });
 const validator = new PDFValidator();
 const parser = new ModernScriptParser();
 
+// Inicjalizacja WebSocket
+const wsManager = new WebSocketManager(server);
+
 // Konfiguracja CORS
 app.use(cors({
-  origin: ['http://localhost:3001', 'http://localhost:5173'],
+  origin: ['http://localhost:3001', 'http://localhost:5173', 'http://localhost:3002'],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
@@ -94,6 +100,7 @@ app.post('/api/save', upload.single('file'), async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`Serwer działa na porcie ${PORT}`);
+  console.log(`WebSocket dostępny na ścieżce /ws/script-analysis`);
 }); 

@@ -1,0 +1,8 @@
+[
+  {"id": "e1", "source": "1", "target": "2", "weight": 5, "sentiment": -0.8, "scenes": [3, 7, 12], "difficult": true},
+  {"id": "e2", "source": "1", "target": "3", "weight": 3, "sentiment": 0.7, "scenes": [2, 5, 8], "difficult": false},
+  {"id": "e3", "source": "2", "target": "4", "weight": 2, "sentiment": -0.4, "scenes": [4, 9], "difficult": false},
+  {"id": "e4", "source": "3", "target": "5", "weight": 1, "sentiment": 0.2, "scenes": [6], "difficult": true},
+  {"id": "e5", "source": "4", "target": "6", "weight": 1, "sentiment": 0.1, "scenes": [10], "difficult": false},
+  {"id": "e6", "source": "1", "target": "5", "weight": 2, "sentiment": -0.2, "scenes": [11], "difficult": true}
+]

@@ -1,0 +1,8 @@
+[
+  {"id": "1", "label": "Kosa", "centrality": 0.95, "role": "protagonist", "screen_time": 120, "difficult": false},
+  {"id": "2", "label": "Dzik", "centrality": 0.85, "role": "antagonist", "screen_time": 100, "difficult": true},
+  {"id": "3", "label": "Maja", "centrality": 0.7, "role": "ally", "screen_time": 80, "difficult": false},
+  {"id": "4", "label": "Szczepan", "centrality": 0.6, "role": "sidekick", "screen_time": 60, "difficult": false},
+  {"id": "5", "label": "Policjantka", "centrality": 0.5, "role": "law", "screen_time": 50, "difficult": true},
+  {"id": "6", "label": "Bolo", "centrality": 0.4, "role": "crowd", "screen_time": 30, "difficult": false}
+]

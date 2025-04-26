@@ -85,3 +85,66 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ---
 
 Made with �� by Site2Data Team
+
+# Testing
+
+## Running Tests
+
+### E2E Tests
+```bash
+npm run test:e2e
+```
+
+### Component Tests
+```bash
+npm run test:component
+```
+
+### Opening Cypress UI
+```bash
+npm run test:open
+```
+
+## Test Structure
+
+- `cypress/e2e/` - End-to-end tests
+- `cypress/support/` - Support files and custom commands
+- `src/**/*.cy.ts` - Component tests
+
+## Writing Tests
+
+### Component Tests
+Component tests should be placed in the same directory as the component they test, with the `.cy.ts` extension.
+
+Example:
+```typescript
+import Component from './Component.svelte'
+
+describe('Component', () => {
+  it('renders correctly', () => {
+    cy.mount(Component)
+    // assertions
+  })
+})
+```
+
+### E2E Tests
+E2E tests should be placed in `cypress/e2e/` and follow the naming pattern `*.cy.ts`.
+
+Example:
+```typescript
+describe('Feature', () => {
+  it('should work correctly', () => {
+    cy.visit('/feature')
+    // interactions and assertions
+  })
+})
+```
+
+## Best Practices
+
+1. Use data-cy attributes for selecting elements
+2. Keep tests independent and isolated
+3. Use custom commands for common operations
+4. Follow the Arrange-Act-Assert pattern
+5. Write descriptive test names

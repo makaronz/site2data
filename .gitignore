@@ -134,3 +134,10 @@ temp/
 *.pem
 *.key
 secrets.json
+
+# Cypress
+cypress/videos/
+cypress/screenshots/
+cypress/downloads/
+cypress/fixtures/
+cypress/results/
