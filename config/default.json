@@ -1,0 +1,18 @@
+{
+  "server": {
+    "port": 8000,
+    "host": "localhost"
+  },
+  "database": {
+    "url": "mongodb://localhost:27017/site2data"
+  },
+  "storage": {
+    "uploadDir": "data/uploads",
+    "tempDir": "data/temp",
+    "maxFileSize": 52428800
+  },
+  "logging": {
+    "level": "info",
+    "file": "logs/app.log"
+  }
+} 

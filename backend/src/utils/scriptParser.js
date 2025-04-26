@@ -1,426 +1,350 @@
-const pdfParse = require('pdf-parse');
-const fs = require('fs');
-
 /**
- * Klasa odpowiedzialna za parsowanie scenariuszy filmowych z plików PDF.
- * Obsługuje różne formaty scenariuszy i ekstrahuje sceny, postacie, dialogi, rekwizyty, pojazdy, statystów i specjalne wymagania.
+ * Uproszczony parser scenariuszy z obsługą PDF
  */
-class ScriptParser {
-  /**
-   * Inicjalizuje parser z wzorcami do rozpoznawania różnych elementów scenariusza.
-   */
-  constructor() {
-    // Wzorce do rozpoznawania różnych formatów scenariuszy
-    this.patterns = {
-      // Format 1: INT/EXT. LOCATION - TIME OF DAY
-      standardSceneHeader: [
-        /^(?:SCENA\s+)?([\d]+[A-Z]?)\.\s*((?:INT|EXT|INT\/EXT|EXT\/INT)[\.|\s|-]+)([^-\n]+?)(?:[-|\s]+)((?:DZIEŃ|NOC|ŚWIT|ZMIERZCH|WSCHÓD|ZACHÓD))/i,
-        /^([\d]+[A-Z]?)[\.\s]+((?:WNĘTRZE|PLENER|WNĘTRZE\/PLENER|PLENER\/WNĘTRZE)[\.|\s|-]+)([^-\n]+?)(?:[-|\s]+)((?:DZIEŃ|NOC|ŚWIT|ZMIERZCH|WSCHÓD|ZACHÓD))/i
-      ],
-      // Format 2: LOCATION - TIME OF DAY (następnie numer sceny w kolejnej linii)
-      locationTime: /^([A-ZĘÓĄŚŁŻŹĆŃPL\.\s]+)\s*-\s*(DZIEŃ|NOC|ŚWIT|ZMIERZCH|WSCHÓD|ZACHÓD)\.*$/i,
-      // Pasuje do samego numeru sceny (np. "1" lub "1A")
-      sceneNumber: /^(\d+[A-Z]?)$/,
-      // Pasuje do postaci mówiącej
-      character: /^([A-ZĘÓĄŚŁŻŹĆŃ][A-ZĘÓĄŚŁŻŹĆŃ\s\-]+)(?:\(([^\)]+)\))?:?\s*$/,
-      // Pasuje do dialogu postaci
-      dialogue: /^([A-ZĘÓĄŚŁŻŹĆŃ][A-ZĘÓĄŚŁŻŹĆŃ\s\-]+):\s*(.+)/,
-      // Dodatkowe wzorce dla innych elementów
-      prop: /REKWIZYT(?:Y)?:\s*(.+)/i,
-      vehicle: /POJAZD(?:Y)?:\s*(.+)/i,
-      extras: /STATYST(?:A|CI|ÓW)?:\s*(.+)/i,
-      special: /UWAG(?:A|I):\s*(.+)/i
+import { formatDetection } from './formatDetection.js';
+import { Poppler } from 'node-poppler';
+import { promises as fs } from 'fs';
+import { join } from 'path';
+import { tmpdir } from 'os';
+import { parserConfig, errorMessages } from '../config/parserConfig.js';
+import { CacheManager } from './cacheManager.js';
+import { PDFValidator } from './pdfValidator.js';
+import { Worker } from 'worker_threads';
+
+export class ModernScriptParser {
+  constructor(config = {}) {
+    this.config = {
+      ...parserConfig,
+      ...config
     };
+    this.poppler = new Poppler();
+    this.cache = new CacheManager();
+    this.validator = new PDFValidator();
   }
 
-  /**
-   * Parsuje plik scenariusza i zwraca strukturę danych reprezentującą scenariusz.
-   * @param {string} filePath - Ścieżka do pliku PDF ze scenariuszem.
-   * @returns {Promise<Object>} - Obiekt reprezentujący sparsowany scenariusz.
-   * @throws {Error} - Błąd, jeśli plik nie istnieje lub nie może być sparsowany.
-   */
-  async parse(filePath) {
-    if (!filePath) {
-      throw new Error('Nie podano ścieżki do pliku scenariusza');
-    }
+  async createOutputDirectories(title) {
+    // Utwórz główny katalog parsed jeśli nie istnieje
+    const baseDir = join(process.cwd(), this.config.outputDir);
+    await fs.mkdir(baseDir, { recursive: true });
 
-    if (!fs.existsSync(filePath)) {
-      throw new Error('Plik scenariusza nie istnieje');
-    }
+    // Utwórz katalog dla konkretnego filmu
+    const movieDir = join(baseDir, this.sanitizeTitle(title));
+    await fs.mkdir(movieDir, { recursive: true });
 
-    try {
-      const dataBuffer = fs.readFileSync(filePath);
-      const data = await pdfParse(dataBuffer);
-      
-      const lines = data.text
-        .replace(/\r\n/g, '\n')
-        .split('\n')
-        .map(line => line.trim())
-        .filter(line => line.length > 0);
+    return movieDir;
+  }
 
-      if (lines.length === 0) {
-        throw new Error('Plik scenariusza jest pusty');
-      }
+  sanitizeTitle(title) {
+    // Usuń rozszerzenie pliku i znaki specjalne
+    return title
+      .replace(/\.[^/.]+$/, '') // usuń rozszerzenie
+      .replace(/[^a-zA-Z0-9\s-]/g, '') // usuń znaki specjalne
+      .replace(/\s+/g, '_') // zamień spacje na podkreślenia
+      .toLowerCase();
+  }
 
-      // Wykrywanie formatu scenariusza na podstawie pierwszych 100 linii
-      const format = this._detectScriptFormat(lines.slice(0, 100));
-      console.log(`Wykryty format scenariusza: ${format}`);
-      
-      // Wybór metody parsowania
-      let scenes = [];
-      if (format === 'standard') {
-        scenes = this._parseStandardFormat(lines);
-      } else if (format === 'location-time-number') {
-        scenes = this._parseLocationTimeNumberFormat(lines);
-      } else {
-        console.warn('Nieznany format scenariusza, próbuję parsować w standardowym formacie');
-        scenes = this._parseStandardFormat(lines);
-      }
+  async saveAnalysis(result, title) {
+    const outputDir = await this.createOutputDirectories(title);
 
-      // Metadane
-      const uniqueCharacters = new Set();
-      let totalDialogues = 0;
+    // Zapisz podstawowe informacje
+    await fs.writeFile(
+      join(outputDir, 'info.txt'),
+      `Tytuł: ${title}
+Format: ${result.format}
+Data przetworzenia: ${result.metadata.processed_at}
+Liczba scen: ${result.metadata.totalScenes}
+Postacie: ${result.metadata.characters.join(', ')}
+`
+    );
 
-      scenes.forEach(scene => {
-        scene.cast.forEach(character => uniqueCharacters.add(character));
-        totalDialogues += scene.dialogue.length;
+    // Zapisz szczegółową analizę scen
+    await fs.writeFile(
+      join(outputDir, 'scenes.txt'),
+      result.scenes.map((scene, index) => `
+Scena ${index + 1}:
+Nagłówek: ${scene.heading}
+Postacie: ${Array.from(scene.characters).join(', ')}
+Liczba dialogów: ${scene.dialogues.length}
+
+Dialogi:
+${scene.dialogues.map(dialogue => `
+  Postać: ${dialogue.character}
+  ${dialogue.parenthetical ? `Wskazówka: ${dialogue.parenthetical}\n` : ''}  Tekst: ${dialogue.text.trim()}
+`).join('\n')}
+
+Opis:
+${scene.description.trim()}
+-------------------
+`).join('\n')
+    );
+
+    // Zapisz analizę postaci
+    const characterAnalysis = this.analyzeCharacters(result.scenes);
+    await fs.writeFile(
+      join(outputDir, 'characters.txt'),
+      Object.entries(characterAnalysis)
+        .map(([character, stats]) => `
+Postać: ${character}
+Liczba scen: ${stats.sceneCount}
+Liczba dialogów: ${stats.dialogueCount}
+Pierwsze pojawienie się: Scena ${stats.firstAppearance}
+Ostatnie pojawienie się: Scena ${stats.lastAppearance}
+`).join('\n')
+    );
+
+    // Zapisz statystyki
+    await fs.writeFile(
+      join(outputDir, 'statistics.txt'),
+      this.generateStatistics(result)
+    );
+
+    return outputDir;
+  }
+
+  analyzeCharacters(scenes) {
+    const characters = {};
+
+    scenes.forEach((scene, sceneIndex) => {
+      scene.characters.forEach(character => {
+        if (!characters[character]) {
+          characters[character] = {
+            sceneCount: 0,
+            dialogueCount: 0,
+            firstAppearance: sceneIndex + 1,
+            lastAppearance: sceneIndex + 1
+          };
+        }
+
+        characters[character].sceneCount++;
+        characters[character].lastAppearance = sceneIndex + 1;
+        characters[character].dialogueCount += scene.dialogues.filter(d => d.character === character).length;
       });
+    });
 
-      return {
-        title: this.extractTitle(lines),
-        version: this.extractVersion(lines),
-        date: new Date(),
-        scenes: scenes,
+    return characters;
+  }
+
+  generateStatistics(result) {
+    const totalDialogues = result.scenes.reduce((sum, scene) => sum + scene.dialogues.length, 0);
+    const avgDialoguesPerScene = totalDialogues / result.scenes.length;
+    
+    const sceneLengths = result.scenes.map(scene => scene.description.length);
+    const avgSceneLength = sceneLengths.reduce((a, b) => a + b, 0) / sceneLengths.length;
+
+    return `Statystyki scenariusza:
+------------------------
+Całkowita liczba scen: ${result.scenes.length}
+Całkowita liczba dialogów: ${totalDialogues}
+Średnia liczba dialogów na scenę: ${avgDialoguesPerScene.toFixed(2)}
+Średnia długość opisu sceny: ${avgSceneLength.toFixed(2)} znaków
+Liczba postaci: ${result.metadata.characters.length}
+`;
+  }
+
+  async parse(scriptContent, options = {}) {
+    try {
+      // Konwertuj na buffer jeśli to string
+      const content = Buffer.isBuffer(scriptContent) ? 
+        scriptContent : 
+        Buffer.from(scriptContent);
+
+      // Sprawdź cache
+      const cacheKey = this.cache.generateKey(content);
+      const cached = await this.cache.get(cacheKey);
+      if (cached) {
+        console.log('Znaleziono w cache');
+        return cached;
+      }
+
+      // Walidacja PDF
+      const validationResult = await this.validator.validate(content);
+      if (!validationResult.isValid) {
+        throw new Error(errorMessages.PDF_INVALID);
+      }
+
+      // Wykryj format
+      const format = await formatDetection.detect(content);
+      
+      // Konwertuj PDF na tekst jeśli potrzeba
+      let textContent;
+      if (format === 'pdf') {
+        try {
+          textContent = await this.parsePDF(content);
+          if (!this.validator.isTextContent(textContent)) {
+            throw new Error(errorMessages.OCR_FAILED);
+          }
+        } catch (error) {
+          console.error('Błąd podczas parsowania PDF:', error);
+          throw new Error(errorMessages.PDF_CORRUPTED);
+        }
+      } else {
+        textContent = content.toString('utf-8');
+      }
+      
+      // Przetwórz zawartość w osobnym wątku
+      const scenes = await this.processInWorker(textContent);
+      
+      const result = {
+        format,
+        scenes,
         metadata: {
-          totalScenes: scenes.length,
-          uniqueCharacters: Array.from(uniqueCharacters),
-          totalDialogues: totalDialogues
+          ...validationResult.metadata,
+          processed_at: new Date().toISOString(),
+          characters: this.extractCharacters(scenes),
+          totalScenes: scenes.length
         }
       };
+
+      // Zapisz do cache
+      await this.cache.set(cacheKey, result);
+
+      // Zapisz wyniki analizy jeśli podano tytuł
+      if (options.title) {
+        await this.saveAnalysis(result, options.title);
+      }
+
+      return result;
     } catch (error) {
       console.error('Błąd podczas parsowania:', error);
-      throw new Error(`Błąd podczas parsowania scenariusza: ${error.message}`);
+      throw error;
     }
   }
 
-  /**
-   * Wykrywa format scenariusza na podstawie próbki linii.
-   * @param {string[]} lines - Próbka linii ze scenariusza.
-   * @returns {string} - Wykryty format scenariusza ('standard' lub 'location-time-number').
-   * @private
-   */
-  _detectScriptFormat(lines) {
-    // Sprawdza format na podstawie próbki linii
-    let standardFormatCount = 0;
-    let locationTimeFormatCount = 0;
-    
-    for (let i = 0; i < lines.length; i++) {
-      // Sprawdź format standardowy (numer sceny + INT/EXT + lokacja + pora dnia)
-      for (const pattern of this.patterns.standardSceneHeader) {
-        if (pattern.test(lines[i])) {
-          standardFormatCount++;
-          break;
-        }
-      }
+  async processInWorker(content) {
+    return new Promise((resolve, reject) => {
+      const worker = new Worker('./scriptParserWorker.js');
       
-      // Sprawdź format "lokacja - pora dnia" + numer sceny
-      if (this.patterns.locationTime.test(lines[i]) && 
-          i+1 < lines.length && 
-          this.patterns.sceneNumber.test(lines[i+1])) {
-        locationTimeFormatCount++;
-      }
-    }
-    
-    if (standardFormatCount > locationTimeFormatCount) {
-      return 'standard';
-    } else if (locationTimeFormatCount > 0) {
-      return 'location-time-number';
-    }
-    
-    return 'standard'; // Domyślnie zwróć standardowy format
+      const timeout = setTimeout(() => {
+        worker.terminate();
+        reject(new Error(errorMessages.PROCESSING_TIMEOUT));
+      }, this.config.processing.timeout);
+
+      worker.on('message', (result) => {
+        clearTimeout(timeout);
+        if (result.success) {
+          resolve(result.scenes);
+        } else {
+          reject(new Error(result.error));
+        }
+      });
+
+      worker.on('error', (error) => {
+        clearTimeout(timeout);
+        reject(error);
+      });
+
+      worker.postMessage({ content });
+    });
   }
 
-  /**
-   * Parsuje scenariusz w standardowym formacie (numer sceny + INT/EXT + lokacja + pora dnia).
-   * @param {string[]} lines - Linie ze scenariusza.
-   * @returns {Object[]} - Tablica obiektów reprezentujących sceny.
-   * @private
-   */
-  _parseStandardFormat(lines) {
+  async parsePDF(pdfBuffer) {
+    const tmpDir = tmpdir();
+    const pdfPath = join(tmpDir, `temp-${Date.now()}.pdf`);
+    const txtPath = join(tmpDir, `temp-${Date.now()}.txt`);
+    
+    try {
+      await fs.writeFile(pdfPath, pdfBuffer);
+      
+      // Użyj konfiguracji Poppler
+      await this.poppler.pdfToText(pdfPath, txtPath, this.config.pdf.poppler);
+      
+      const text = await fs.readFile(txtPath, 'utf-8');
+      
+      // Usuń pliki tymczasowe
+      await Promise.all([
+        fs.unlink(pdfPath).catch(() => {}),
+        fs.unlink(txtPath).catch(() => {})
+      ]);
+      
+      return text;
+    } catch (error) {
+      // Spróbuj usunąć pliki tymczasowe w przypadku błędu
+      await Promise.all([
+        fs.unlink(pdfPath).catch(() => {}),
+        fs.unlink(txtPath).catch(() => {})
+      ]);
+      throw error;
+    }
+  }
+
+  parseScenes(content) {
     const scenes = [];
+    const lines = content.split('\n');
     let currentScene = null;
-    let description = [];
-
+    let currentDialogue = null;
+    
     for (const line of lines) {
-      let sceneMatch = null;
-      
-      // Sprawdź nagłówek sceny
-      for (const pattern of this.patterns.standardSceneHeader) {
-        const match = line.match(pattern);
-        if (match) {
-          sceneMatch = match;
-          break;
-        }
-      }
+      const trimmedLine = line.trim();
+      if (!trimmedLine) continue;
 
-      if (sceneMatch) {
+      // Wykryj nagłówek sceny
+      if (trimmedLine.match(/^(INT|EXT|INT\/EXT|EXT\/INT)/)) {
         if (currentScene) {
-          currentScene.description = description.join(' ');
           scenes.push(currentScene);
-          description = [];
         }
-        
-        currentScene = this._createNewScene({
-          sceneNumber: sceneMatch[1],
-          locationType: sceneMatch[2].trim(),
-          locationName: sceneMatch[3].trim(),
-          timeOfDay: sceneMatch[4]
-        });
+        currentScene = {
+          heading: trimmedLine,
+          description: '',
+          characters: new Set(),
+          dialogues: []
+        };
         continue;
       }
 
       if (!currentScene) continue;
 
-      // Przetwarzanie linii w kontekście bieżącej sceny
-      this._processSceneLine(line, currentScene, description);
-    }
-
-    // Dodaj ostatnią scenę
-    if (currentScene) {
-      currentScene.description = description.join(' ');
-      scenes.push(currentScene);
-    }
-
-    // Konwertuj Set na Array dla każdej sceny
-    scenes.forEach(scene => {
-      scene.cast = Array.from(scene.cast);
-    });
-
-    return scenes;
-  }
-
-  /**
-   * Parsuje scenariusz w formacie "lokacja - pora dnia" + numer sceny.
-   * @param {string[]} lines - Linie ze scenariusza.
-   * @returns {Object[]} - Tablica obiektów reprezentujących sceny.
-   * @private
-   */
-  _parseLocationTimeNumberFormat(lines) {
-    const scenes = [];
-    let currentScene = null;
-    let potentialLocation = null;
-    let potentialTimeOfDay = null;
-    let waitingForSceneNumber = false;
-    let description = [];
-
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-      
-      // Sprawdź czy linia zawiera lokację i porę dnia
-      const locationTimeMatch = line.match(this.patterns.locationTime);
-      if (locationTimeMatch) {
-        potentialLocation = locationTimeMatch[1].trim();
-        potentialTimeOfDay = locationTimeMatch[2].trim();
-        waitingForSceneNumber = true;
+      // Wykryj postać
+      if (trimmedLine.match(/^[A-Z][A-Z\s]+$/)) {
+        const character = trimmedLine;
+        currentScene.characters.add(character);
+        currentDialogue = {
+          character,
+          text: '',
+          parenthetical: null
+        };
         continue;
       }
-      
-      // Jeśli oczekujemy numeru sceny, sprawdź czy następna linia to numer
-      if (waitingForSceneNumber) {
-        const sceneNumberMatch = line.match(this.patterns.sceneNumber);
-        if (sceneNumberMatch) {
-          // Znaleźliśmy nagłówek sceny (lokacja + pora dnia + numer)
-          if (currentScene) {
-            currentScene.description = description.join(' ');
-            scenes.push(currentScene);
-            description = [];
+
+      // Wykryj wskazówki w nawiasach
+      if (trimmedLine.match(/^\(.*\)$/)) {
+        if (currentDialogue) {
+          currentDialogue.parenthetical = trimmedLine;
+        }
+        continue;
+      }
+
+      // Dodaj tekst dialogu
+      if (currentDialogue) {
+        if (trimmedLine && !trimmedLine.match(/^[A-Z\s]+$/)) {
+          currentDialogue.text += trimmedLine + ' ';
+          if (!currentScene.dialogues.includes(currentDialogue)) {
+            currentScene.dialogues.push(currentDialogue);
           }
-          
-          const sceneNumber = sceneNumberMatch[1];
-          
-          currentScene = this._createNewScene({
-            sceneNumber: sceneNumber,
-            locationType: 'NIEOKREŚLONY',
-            locationName: potentialLocation,
-            timeOfDay: potentialTimeOfDay
-          });
-          
-          waitingForSceneNumber = false;
-          continue;
+        } else {
+          currentDialogue = null;
         }
       }
 
-      if (!currentScene) {
-        waitingForSceneNumber = false;
-        continue;
-      }
-
-      // Przetwarzanie linii w kontekście bieżącej sceny
-      const result = this._processSceneLine(line, currentScene, description);
-      
-      // Specjalna obsługa dla formatu location-time-number
-      if (result.isCharacter && i + 1 < lines.length && !this._isCharacterLine(lines[i + 1])) {
-        currentScene.dialogue.push({
-          character: result.character,
-          text: lines[i + 1].trim()
-        });
-        i++; // Przeskocz następną linię, bo już ją przetworzyliśmy
+      // Dodaj opis sceny
+      if (!currentDialogue) {
+        currentScene.description += trimmedLine + '\n';
       }
     }
 
-    // Dodaj ostatnią scenę
     if (currentScene) {
-      currentScene.description = description.join(' ');
       scenes.push(currentScene);
     }
-
-    // Konwertuj Set na Array dla każdej sceny
-    scenes.forEach(scene => {
-      scene.cast = Array.from(scene.cast);
-    });
 
     return scenes;
   }
 
-  /**
-   * Tworzy nowy obiekt sceny.
-   * @param {Object} params - Parametry sceny.
-   * @param {string} params.sceneNumber - Numer sceny.
-   * @param {string} params.locationType - Typ lokacji (INT/EXT).
-   * @param {string} params.locationName - Nazwa lokacji.
-   * @param {string} params.timeOfDay - Pora dnia.
-   * @returns {Object} - Nowy obiekt sceny.
-   * @private
-   */
-  _createNewScene({ sceneNumber, locationType, locationName, timeOfDay }) {
-    return {
-      sceneNumber: sceneNumber,
-      location: {
-        type: locationType,
-        name: locationName
-      },
-      timeOfDay: timeOfDay,
-      cast: new Set(),
-      dialogue: [],
-      props: [],
-      vehicles: [],
-      extras: [],
-      specialRequirements: []
-    };
-  }
-
-  /**
-   * Sprawdza, czy linia zawiera postać.
-   * @param {string} line - Linia do sprawdzenia.
-   * @returns {boolean} - Czy linia zawiera postać.
-   * @private
-   */
-  _isCharacterLine(line) {
-    return this.patterns.character.test(line) || this.patterns.dialogue.test(line);
-  }
-
-  /**
-   * Przetwarza linię w kontekście bieżącej sceny.
-   * @param {string} line - Linia do przetworzenia.
-   * @param {Object} currentScene - Bieżąca scena.
-   * @param {string[]} description - Tablica linii opisu.
-   * @returns {Object} - Obiekt z informacją, czy linia zawiera postać i jaka to postać.
-   * @private
-   */
-  _processSceneLine(line, currentScene, description) {
-    const result = { isCharacter: false, character: null };
-    
-    // Sprawdź postacie i dialogi
-    const characterMatch = line.match(this.patterns.character);
-    const dialogueMatch = line.match(this.patterns.dialogue);
-    const propMatch = line.match(this.patterns.prop);
-    const vehicleMatch = line.match(this.patterns.vehicle);
-    const extrasMatch = line.match(this.patterns.extras);
-    const specialMatch = line.match(this.patterns.special);
-
-    if (characterMatch && !line.includes(':')) {
-      const character = characterMatch[1].trim();
-      currentScene.cast.add(character);
-      result.isCharacter = true;
-      result.character = character;
-    } else if (dialogueMatch) {
-      const character = dialogueMatch[1].trim();
-      const text = dialogueMatch[2].trim();
-      currentScene.cast.add(character);
-      currentScene.dialogue.push({
-        character: character,
-        text: text
-      });
-    } else if (propMatch) {
-      const props = propMatch[1].split(',').map(prop => {
-        const [name, ...desc] = prop.trim().split(/\s+/);
-        return {
-          name: name,
-          description: desc.join(' '),
-          quantity: 1
-        };
-      });
-      currentScene.props.push(...props);
-    } else if (vehicleMatch) {
-      const vehicles = vehicleMatch[1].split(',').map(vehicle => {
-        const [type, ...desc] = vehicle.trim().split(/\s+/);
-        return {
-          type: type,
-          description: desc.join(' '),
-          quantity: 1
-        };
-      });
-      currentScene.vehicles.push(...vehicles);
-    } else if (extrasMatch) {
-      const extras = extrasMatch[1].split(',').map(extra => {
-        const parts = extra.trim().match(/(\d+)?\s*(.+)/);
-        return {
-          type: parts[2],
-          quantity: parts[1] ? parseInt(parts[1]) : 1,
-          description: ''
-        };
-      });
-      currentScene.extras.push(...extras);
-    } else if (specialMatch) {
-      currentScene.specialRequirements.push(specialMatch[1].trim());
-    } else {
-      description.push(line);
-    }
-
-    return result;
-  }
-
-  /**
-   * Ekstrahuje tytuł scenariusza z pierwszych linii.
-   * @param {string[]} lines - Linie ze scenariusza.
-   * @returns {string} - Tytuł scenariusza.
-   */
-  extractTitle(lines) {
-    // Próba znalezienia tytułu w pierwszych liniach
-    for (let i = 0; i < Math.min(10, lines.length); i++) {
-      if (lines[i].toUpperCase() === lines[i] && lines[i].length > 3) {
-        return lines[i];
+  extractCharacters(scenes) {
+    const characters = new Set();
+    for (const scene of scenes) {
+      for (const character of scene.characters) {
+        characters.add(character);
       }
     }
-    return 'Untitled Script';
+    return Array.from(characters);
   }
-
-  /**
-   * Ekstrahuje wersję scenariusza z pierwszych linii.
-   * @param {string[]} lines - Linie ze scenariusza.
-   * @returns {string} - Wersja scenariusza.
-   */
-  extractVersion(lines) {
-    // Próba znalezienia wersji w pierwszych liniach
-    const versionPattern = /(?:wersja|version|v\.?)\s*[:.]?\s*([\d\.]+)/i;
-    for (let i = 0; i < Math.min(20, lines.length); i++) {
-      const match = lines[i].match(versionPattern);
-      if (match) {
-        return match[1];
-      }
-    }
-    return '1.0';
-  }
-}
-
-module.exports = ScriptParser;
+} 

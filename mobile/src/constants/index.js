@@ -13,7 +13,7 @@ export const STORAGE_KEYS = {
 
 // API endpoints
 export const API_ENDPOINTS = {
-  BASE_URL: 'http://localhost:5000/api',
+  BASE_URL: 'http://localhost:3001/api',
   AUTH: {
     LOGIN: '/auth/login',
     REGISTER: '/auth/register',
