@@ -16,6 +16,11 @@
       "post": {
         "summary": "Analiza skryptu",
         "description": "Przesyła plik do analizy",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -68,6 +73,11 @@
       "post": {
         "summary": "Przesyłanie i analiza pliku PDF",
         "description": "Przesyła plik PDF do analizy i zwraca wyodrębniony tekst.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -118,8 +128,14 @@
       "bearerAuth": {
         "type": "http",
         "scheme": "bearer",
-        "bearerFormat": "JWT"
+        "bearerFormat": "API Key",
+        "description": "Wprowadź klucz API OpenAI w formacie 'Bearer YOUR_API_KEY'"
       }
     }
-  }
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ]
 } 

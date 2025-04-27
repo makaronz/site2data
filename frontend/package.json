@@ -16,6 +16,7 @@
 		"@emotion/styled": "^11.0.0",
 		"@headlessui/react": "^1.7.18",
 		"@heroicons/react": "^2.1.1",
+		"@mui/icons-material": "^7.0.2",
 		"@mui/material": "^5.0.0",
 		"@react-sigma/core": "^3.4.2",
 		"@react-sigma/layout-forceatlas2": "^3.4.2",

@@ -1,10 +1,10 @@
 import * as fs from 'fs';
-import * as pdf from 'pdf-parse';
+import pdfParse from 'pdf-parse';
 
 export async function extractTextFromPDF(filePath: string): Promise<string> {
   try {
     const dataBuffer = fs.readFileSync(filePath);
-    const data = await pdf(dataBuffer);
+    const data = await pdfParse(dataBuffer);
     return data.text;
   } catch (error) {
     console.error('Błąd podczas ekstrakcji tekstu z PDF:', error);

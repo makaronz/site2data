@@ -1,5 +1,16 @@
 import React, { useState } from 'react';
 import axios from 'axios';
+import {
+  Box,
+  Button,
+  Container,
+  Paper,
+  Typography,
+  LinearProgress,
+  Snackbar,
+  Alert,
+  Fade,
+} from '@mui/material';
 
 interface AnalysisProgress {
   stage: string;
@@ -97,54 +108,67 @@ interface AnalysisResult {
   }>;
 }
 
+const MAX_SIZE_MB = 10;
+
 export const PdfAnalyzer: React.FC = () => {
   const [file, setFile] = useState<File | null>(null);
   const [progress, setProgress] = useState<AnalysisProgress>({
     stage: 'idle',
     percentage: 0,
-    message: 'Gotowy do analizy'
+    message: 'Gotowy do analizy',
   });
   const [result, setResult] = useState<AnalysisResult | null>(null);
+  const [currentSnippet, setCurrentSnippet] = useState<string>('');
+  const [showSnippet, setShowSnippet] = useState<boolean>(false);
+  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' | 'info' | 'warning' }>({
+    open: false,
+    message: '',
+    severity: 'info',
+  });
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (event.target.files && event.target.files[0]) {
-      setFile(event.target.files[0]);
+    const f = event.target.files?.[0];
+    if (!f) return;
+    if (!f.type.includes('pdf')) {
+      setSnackbar({ open: true, message: 'Dozwolone są tylko pliki PDF', severity: 'error' });
+      return;
     }
+    if (f.size > MAX_SIZE_MB * 1024 * 1024) {
+      setSnackbar({ open: true, message: 'Plik jest za duży', severity: 'error' });
+      return;
+    }
+    setFile(f);
   };
 
   const handleAnalyze = async () => {
     if (!file) return;
 
-    const formData = new FormData();
-    formData.append('pdf', file);
+    setProgress({
+      stage: 'uploading',
+      percentage: 0,
+      message: 'Rozpoczynam przesyłanie pliku...',
+    });
 
     let ws: WebSocket | null = null;
 
     try {
-      setProgress({
-        stage: 'uploading',
-        percentage: 0,
-        message: 'Rozpoczynam przesyłanie pliku...'
-      });
-
-      // Najpierw nawiązujemy połączenie WebSocket
       ws = new WebSocket(`ws://${window.location.host}/ws/script-analysis`);
-      
+
       ws.onopen = () => {
-        console.log('WebSocket połączenie nawiązane');
+        // Połączenie WebSocket nawiązane
       };
 
-      ws.onerror = (error) => {
-        console.error('WebSocket błąd:', error);
+      ws.onerror = () => {
         setProgress({
           stage: 'error',
           percentage: 0,
-          message: 'Błąd połączenia WebSocket'
+          message: 'Błąd połączenia WebSocket',
         });
+        setSnackbar({ open: true, message: 'Błąd połączenia WebSocket', severity: 'error' });
       };
 
       ws.onclose = () => {
-        console.log('WebSocket połączenie zamknięte');
+        // Połączenie WebSocket zamknięte
       };
 
       ws.onmessage = (event) => {
@@ -153,20 +177,35 @@ export const PdfAnalyzer: React.FC = () => {
           setProgress({
             stage: data.stage,
             percentage: data.percentage,
-            message: data.message
+            message: data.message,
           });
-
-          if (data.stage === 'completed') {
+          if (data.snippet) {
+            setShowSnippet(false);
+            setTimeout(() => {
+              setCurrentSnippet(data.snippet);
+              setShowSnippet(true);
+            }, 200);
+          }
+          if (data.stage === 'completed' || data.stage === 'complete') {
             setResult(data.result);
+            ws?.close();
+            setShowSnippet(false);
+            setCurrentSnippet('');
+          }
+          if (data.stage === 'error') {
+            setSnackbar({ open: true, message: data.message, severity: 'error' });
             ws?.close();
           }
         } catch (error) {
-          console.error('Błąd przetwarzania wiadomości WebSocket:', error);
+          setSnackbar({ open: true, message: 'Błąd przetwarzania wiadomości WebSocket', severity: 'error' });
         }
       };
 
-      // Następnie wysyłamy plik
-      const response = await axios.post('/api/script/analyze', formData, {
+      // Upload pliku
+      const formData = new FormData();
+      formData.append('script', file);
+
+      await axios.post('/api/script/analyze', formData, {
         onUploadProgress: (progressEvent) => {
           const percentage = Math.round(
             (progressEvent.loaded * 100) / (progressEvent.total || 100)
@@ -174,151 +213,119 @@ export const PdfAnalyzer: React.FC = () => {
           setProgress({
             stage: 'uploading',
             percentage,
-            message: `Przesyłanie pliku: ${percentage}%`
+            message: `Przesyłanie pliku: ${percentage}%`,
           });
-        }
+        },
       });
-
-      if (!response.data.success) {
-        throw new Error(response.data.message || 'Błąd analizy pliku');
-      }
-
     } catch (error) {
-      console.error('Błąd podczas przetwarzania:', error);
       setProgress({
         stage: 'error',
         percentage: 0,
-        message: 'Wystąpił błąd podczas analizy: ' + (error instanceof Error ? error.message : 'Nieznany błąd')
+        message: 'Wystąpił błąd podczas analizy: ' + (error instanceof Error ? error.message : 'Nieznany błąd'),
       });
+      setSnackbar({ open: true, message: 'Wystąpił błąd podczas analizy', severity: 'error' });
       ws?.close();
     }
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-6 bg-white rounded-lg shadow-lg">
-      <h2 className="text-2xl font-bold mb-4">Analiza Skryptu PDF</h2>
-      
-      <div className="mb-4">
-        <label htmlFor="pdf-upload" className="block text-sm font-medium text-gray-700 mb-2">
-          Wybierz plik PDF ze skryptem
-        </label>
-        <input
-          id="pdf-upload"
-          type="file"
-          accept=".pdf"
-          onChange={handleFileChange}
-          className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-        />
-      </div>
+    <Container maxWidth="md" sx={{ py: 4 }}>
+      <Typography variant="h4" fontWeight="bold" mb={3}>
+        Analiza Skryptu PDF
+      </Typography>
 
-      <button
+      <Box mb={3}>
+        <Button
+          variant="contained"
+          component="label"
+          fullWidth
+          aria-label="Wybierz plik PDF"
+        >
+          Wybierz plik PDF
+          <input
+            type="file"
+            accept=".pdf"
+            hidden
+            onChange={handleFileChange}
+          />
+        </Button>
+        {file && (
+          <Typography variant="body2" color="text.secondary" mt={1}>
+            Wybrano: {file.name}
+          </Typography>
+        )}
+      </Box>
+
+      <Button
         onClick={handleAnalyze}
         disabled={!file || progress.stage === 'analyzing'}
-        className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed mb-4"
+        variant="contained"
+        color="primary"
+        fullWidth
+        sx={{ mb: 3 }}
+        aria-label="Rozpocznij analizę"
       >
         {progress.stage === 'analyzing' ? 'Analizuję...' : 'Analizuj'}
-      </button>
+      </Button>
 
-      {/* Progress bar */}
-      <div className="mb-6">
-        <div className="w-full bg-gray-200 rounded-full h-2.5">
-          <div 
-            className="bg-blue-600 h-2.5 rounded-full transition-all duration-300"
-            style={{ width: `${progress.percentage}%` }}
-          />
+      <Box mb={3}>
+        <LinearProgress
+          variant="determinate"
+          value={progress.percentage}
+          sx={{ height: 8, borderRadius: 2 }}
+          aria-label="Postęp analizy"
+        />
+        <Typography variant="body2" color="text.secondary" mt={2}>
+          {progress.message}
+        </Typography>
+      </Box>
+
+      <Fade in={showSnippet} timeout={600}>
+        <div>
+          {currentSnippet && (
+            <Paper elevation={2} sx={{ mt: 2, p: 2, bgcolor: 'grey.100' }}>
+              <Typography variant="subtitle2" color="textSecondary" gutterBottom>
+                Przykładowy nagłówek sceny:
+              </Typography>
+              <Typography variant="body1" sx={{ fontStyle: 'italic' }}>
+                {currentSnippet}
+              </Typography>
+            </Paper>
+          )}
         </div>
-        <p className="text-sm text-gray-600 mt-2">{progress.message}</p>
-      </div>
+      </Fade>
 
-      {/* Results display */}
       {result && (
-        <div className="mt-8 space-y-6">
-          <h3 className="text-xl font-semibold">Wyniki Analizy</h3>
-          
-          {/* Metadata */}
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <h4 className="font-medium mb-2">Metadane</h4>
-            <p>Tytuł: {result.analysis.metadata.title}</p>
-            <p>Liczba scen: {result.analysis.metadata.scene_count}</p>
-            <p>Język: {result.analysis.metadata.detected_language}</p>
-          </div>
-
-          {/* Quick stats */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <h4 className="font-medium mb-2">Lokacje ({result.locations.length})</h4>
-              <ul className="list-disc list-inside">
-                {result.locations.slice(0, 5).map((loc, i) => (
-                  <li key={i}>{loc}</li>
-                ))}
-              </ul>
-            </div>
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <h4 className="font-medium mb-2">Postacie ({result.roles.length})</h4>
-              <ul className="list-disc list-inside">
-                {result.roles.slice(0, 5).map((role, i) => (
-                  <li key={i}>{role.character} - {role.role}</li>
-                ))}
-              </ul>
-            </div>
-          </div>
-
-          {/* Difficult scenes */}
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <h4 className="font-medium mb-2">Trudne sceny</h4>
-            <div className="space-y-2">
-              {result.difficult_scenes.map((scene, i) => (
-                <div key={i} className="border-l-4 border-yellow-500 pl-3">
-                  <p className="font-medium">Scena {scene.scene_id}</p>
-                  <p className="text-sm text-gray-600">Powód: {scene.reason}</p>
-                  <p className="text-sm text-gray-600">
-                    Potrzebny sprzęt: {scene.gear_needed.join(', ')}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Download buttons */}
-          <div className="flex gap-4">
-            <button
-              onClick={() => {
-                const blob = new Blob([JSON.stringify(result.analysis, null, 2)], { type: 'application/json' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = 'analysis.json';
-                a.click();
-              }}
-              className="bg-green-600 text-white py-2 px-4 rounded hover:bg-green-700"
-            >
-              Pobierz pełną analizę
-            </button>
-            <button
-              onClick={() => {
-                const allData = {
-                  locations: result.locations,
-                  roles: result.roles,
-                  props: result.props,
-                  vehicles: result.vehicles,
-                  special_effects: result.special_effects,
-                  weapons: result.weapons,
-                  difficult_scenes: result.difficult_scenes
-                };
-                const blob = new Blob([JSON.stringify(allData, null, 2)], { type: 'application/json' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = 'production_data.json';
-                a.click();
-              }}
-              className="bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700"
-            >
-              Pobierz dane produkcyjne
-            </button>
-          </div>
-        </div>
+        <Paper elevation={3} sx={{ mt: 4, p: 3 }}>
+          <Typography variant="h6" mb={2}>
+            Wyniki Analizy
+          </Typography>
+          <Typography variant="body1">
+            Tytuł: {result.analysis.metadata.title}
+          </Typography>
+          <Typography variant="body1">
+            Liczba scen: {result.analysis.metadata.scene_count}
+          </Typography>
+          <Typography variant="body1">
+            Język: {result.analysis.metadata.detected_language}
+          </Typography>
+          {/* Dodaj tu kolejne sekcje wyników */}
+        </Paper>
       )}
-    </div>
+
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={() => setSnackbar((s) => ({ ...s, open: false }))}
+      >
+        <Alert
+          onClose={() => setSnackbar((s) => ({ ...s, open: false }))}
+          severity={snackbar.severity}
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
+    </Container>
   );
 }; 

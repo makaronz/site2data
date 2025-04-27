@@ -8,41 +8,31 @@ interface AnalysisResult {
 }
 
 export class ScriptAnalysisService {
-  public async analyzeScript(script: Script): Promise<AnalysisResult> {
-    // Basic implementation of script analysis
-    const issues: string[] = [];
-    const recommendations: string[] = [];
-    let score = 100;
-
-    // Check script length
-    if (script.content.length < 10) {
-      issues.push('Script is too short');
-      recommendations.push('Add more content to the script');
-      score -= 20;
+  public async analyzeScript(script: Script, apiKey?: string): Promise<any> {
+    try {
+      // Używamy faktycznej funkcji analizy skryptu, przekazując opcjonalny klucz API
+      const result = await analyzeScript(script.content, apiKey);
+      
+      // Zwracamy pełny wynik analizy
+      return result;
+    } catch (error) {
+      console.error('Błąd podczas analizy skryptu:', error);
+      
+      // W przypadku błędu zwracamy podstawową odpowiedź
+      return {
+        analysis: {
+          metadata: {
+            title: 'Błąd analizy',
+            authors: [],
+            detected_language: 'pl',
+            scene_count: 0,
+            token_count: 0,
+            analysis_timestamp: new Date().toISOString()
+          },
+          overall_summary: 'Wystąpił błąd podczas analizy scenariusza.'
+        }
+      };
     }
-
-    // Check for basic formatting
-    if (!script.content.includes('\n')) {
-      issues.push('Script lacks proper formatting');
-      recommendations.push('Add line breaks to improve readability');
-      score -= 10;
-    }
-
-    // Check for comments
-    if (!script.content.includes('//') && !script.content.includes('/*')) {
-      issues.push('Script lacks comments');
-      recommendations.push('Add comments to explain the code');
-      score -= 15;
-    }
-
-    // Ensure score doesn't go below 0
-    score = Math.max(0, score);
-
-    return {
-      score,
-      issues,
-      recommendations,
-    };
   }
 }
 

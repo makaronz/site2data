@@ -189,14 +189,67 @@ export const handleWebSocket = (ws: WebSocketClient) => {
 
           ws.send(JSON.stringify(progress));
 
-          // Przykładowa odpowiedź ANALYSIS_RESULT (z wymaganym result)
-          // const analysisResult: AnalysisResultMessage = {
-          //   type: 'ANALYSIS_RESULT',
-          //   result: { analysis: { metadata: { title: '', authors: [], detected_language: '', scene_count: 0, token_count: 0, analysis_timestamp: '' }, overall_summary: '' } }
-          // };
-          // ws.send(JSON.stringify(analysisResult));
+          // Wykonanie faktycznej analizy skryptu
+          try {
+            const scriptText = analyzeData.script.toString('utf-8');
+            const sceneRegex = /^(INT\.|EXT\.|INT\/EXT\.|EXT\/INT\.)/i;
+            const sceneLines = scriptText
+              .split('\n')
+              .map(l => l.trim())
+              .filter(l => sceneRegex.test(l) && l.length > 10);
 
-          // Tutaj logika analizy skryptu
+            let snippetIndex = 0;
+            const maxSnippets = 10;
+            const snippetInterval = setInterval(() => {
+              if (snippetIndex < Math.min(sceneLines.length, maxSnippets)) {
+                ws.send(JSON.stringify({
+                  type: 'PROGRESS',
+                  stage: 'analyzing',
+                  progress: 50 + Math.round((snippetIndex / maxSnippets) * 40),
+                  message: 'Analizuję scenariusz...',
+                  snippet: sceneLines[snippetIndex]
+                }));
+                snippetIndex++;
+              } else {
+                clearInterval(snippetInterval);
+              }
+            }, 2000);
+
+            ws.send(JSON.stringify({
+              type: 'PROGRESS',
+              stage: 'analyzing',
+              progress: 50,
+              message: 'Analizuję tekst skryptu...'
+            }));
+            
+            const analysisResult = await scriptAnalysisService.analyzeScript({
+              content: scriptText,
+              type: 'pdf',
+              filename: 'script.pdf'
+            }, process.env.OPENAI_API_KEY);
+            
+            ws.send(JSON.stringify({
+              type: 'ANALYSIS_RESULT',
+              result: analysisResult
+            }));
+            
+            ws.send(JSON.stringify({
+              type: 'PROGRESS',
+              stage: 'complete',
+              progress: 100,
+              message: 'Analiza zakończona'
+            }));
+
+            clearInterval(snippetInterval);
+          } catch (error) {
+            console.error('Błąd podczas analizy skryptu:', error);
+            const errorMsg: ErrorMessage = {
+              type: 'ERROR',
+              message: 'Wystąpił błąd podczas analizy skryptu'
+            };
+            ws.send(JSON.stringify(errorMsg));
+          }
+          
           break;
         }
         default: {
@@ -231,6 +284,9 @@ router.post('/analyze', upload.single('script'), validateUpload, async (req, res
 
     console.log('Plik otrzymany:', req.file.originalname, 'typ:', req.body.type || 'pdf');
 
+    // Pobierz token autoryzacyjny z nagłówka
+    const authHeader = req.headers.authorization;
+    
     // Odczytaj zawartość pliku
     const filePath = req.file.path;
     
@@ -260,7 +316,7 @@ router.post('/analyze', upload.single('script'), validateUpload, async (req, res
         content: fileContent,
         type: req.body.type || 'pdf',
         filename: req.file.originalname
-      });
+      }, authHeader);
 
       console.log('Analiza zakończona pomyślnie');
 

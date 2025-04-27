@@ -1,12 +1,60 @@
-version: '3'
+version: '3.8'
 
 services:
-  web:
-    build: .
+  mongo:
+    image: mongo:6
+    container_name: mongo
+    restart: always
     ports:
-      - "5000:8080"
+      - "27017:27017"
     environment:
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      MONGO_INITDB_DATABASE: scenario
     volumes:
-      - ./downloaded_content:/app/downloaded_content
-    restart: unless-stopped
+      - mongo_data:/data/db
+
+  redis:
+    image: redis:7
+    container_name: redis
+    restart: always
+    ports:
+      - "6379:6379"
+
+  api:
+    build:
+      context: ./backend
+    container_name: api
+    restart: always
+    env_file:
+      - .env
+    ports:
+      - "3001:3001"
+    depends_on:
+      - mongo
+      - redis
+
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.worker
+    container_name: worker
+    restart: always
+    env_file:
+      - .env
+    depends_on:
+      - mongo
+      - redis
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: frontend
+    restart: always
+    env_file:
+      - .env
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+
+volumes:
+  mongo_data:

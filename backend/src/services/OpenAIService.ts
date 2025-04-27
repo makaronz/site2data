@@ -1,4 +1,4 @@
-import { Configuration, OpenAIApi } from 'openai';
+import OpenAI from 'openai';
 import { RateLimiter } from '../utils/RateLimiter';
 import { RetryStrategy } from '../utils/RetryStrategy';
 import { logger } from '../utils/logger';
@@ -12,16 +12,15 @@ interface OpenAIServiceConfig {
 }
 
 export class OpenAIService {
-  private openai: OpenAIApi;
+  private openai: OpenAI;
   private retryStrategy: RetryStrategy;
   private rateLimiter: RateLimiter;
 
   constructor(config: OpenAIServiceConfig) {
-    const configuration = new Configuration({
+    this.openai = new OpenAI({
       apiKey: config.apiKey,
     });
-
-    this.openai = new OpenAIApi(configuration);
+    
     this.retryStrategy = new RetryStrategy({
       maxRetries: config.maxRetries || 3,
       initialDelay: config.initialRetryDelay || 1000,
@@ -75,21 +74,20 @@ export class OpenAIService {
   public async generateCompletion(
     prompt: string,
     options: {
-      model?: string;
       temperature?: number;
       maxTokens?: number;
     } = {}
   ) {
     return this.executeWithRetry(
       async () => {
-        const response = await this.openai.createCompletion({
-          model: options.model || 'text-davinci-003',
+        const response = await this.openai.completions.create({
+          model: 'gpt-4-turbo-2024-04-09',
           prompt,
           temperature: options.temperature ?? 0.7,
           max_tokens: options.maxTokens ?? 2048,
         });
 
-        return response.data;
+        return response;
       },
       'generateCompletion'
     );
@@ -98,12 +96,12 @@ export class OpenAIService {
   public async generateEmbedding(text: string) {
     return this.executeWithRetry(
       async () => {
-        const response = await this.openai.createEmbedding({
+        const response = await this.openai.embeddings.create({
           model: 'text-embedding-ada-002',
           input: text,
         });
 
-        return response.data;
+        return response;
       },
       'generateEmbedding'
     );
@@ -112,8 +110,8 @@ export class OpenAIService {
   public async analyzeScript(text: string) {
     return this.executeWithRetry(
       async () => {
-        const response = await this.openai.createChatCompletion({
-          model: 'gpt-4',
+        const response = await this.openai.chat.completions.create({
+          model: 'gpt-4-turbo-2024-04-09',
           messages: [
             {
               role: 'system',
@@ -127,7 +125,7 @@ export class OpenAIService {
           temperature: 0.7,
         });
 
-        return response.data;
+        return response;
       },
       'analyzeScript'
     );

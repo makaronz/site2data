@@ -130,12 +130,28 @@ class AnalysisEmitter extends EventEmitter {
   }
 }
 
-export async function analyzeScript(text: string): Promise<AnalysisResult & AnalysisEmitter> {
+export async function analyzeScript(text: string, customApiKey?: string): Promise<AnalysisResult & AnalysisEmitter> {
   const emitter = new AnalysisEmitter();
   
   try {
+    // Sprawdzamy, czy klucz API jest dostępny
+    console.log('Sprawdzanie klucza API OpenAI...');
+    let apiKey = customApiKey || process.env.OPENAI_API_KEY;
+    
+    if (!apiKey) {
+      console.error('BŁĄD: Klucz API OpenAI nie został znaleziony w zmiennych środowiskowych');
+      throw new Error('Brak klucza API OpenAI');
+    }
+    
+    // Sprawdzenie czy token zawiera prefix "Bearer"
+    if (apiKey.startsWith('Bearer ')) {
+      apiKey = apiKey.substring(7);
+    }
+    
+    console.log('Klucz API OpenAI znaleziony: ', apiKey.substring(0, 10) + '...' + apiKey.substring(apiKey.length - 5));
+    
     const openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
+      apiKey: apiKey,
     });
 
     emitter.updateProgress('preprocessing', 10, 'Przygotowywanie tekstu do analizy...');
@@ -195,7 +211,7 @@ ${text}
     emitter.updateProgress('analysis', 30, 'Analizuję tekst...');
 
     const completion = await openai.chat.completions.create({
-      model: "gpt-4",
+      model: "gpt-4-turbo-2024-04-09",
       messages: [{ role: "user", content: prompt }],
       temperature: 0.7,
     });

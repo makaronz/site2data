@@ -1,19 +1,23 @@
 import express from 'express';
-import { createServer } from 'http';
-import { WebSocketServer } from 'ws';
 import cors from 'cors';
-import path from 'path';
 import dotenv from 'dotenv';
+import { createServer } from 'http';
+import { WebSocket, WebSocketServer } from 'ws';
+import swaggerUi from 'swagger-ui-express';
+import swaggerDocument from './swagger.json';
+import config from './config/environments';
+import scriptAnalysisRoutes from './routes/scriptAnalysis';
+import pdfRoutes from './routes/pdfRoutes';
+import apiTestRoutes from './routes/apiTest';
+import { openaiAuth } from './middleware/openaiAuth';
+import path from 'path';
 import multer from 'multer';
 import fs from 'fs';
-import pdfRoutes from './routes/pdfRoutes';
 import scriptAnalysisRouter, { handleWebSocket } from './routes/scriptAnalysis';
 import { WebSocketClient } from './types/websocket';
 import { apiLimiter, uploadLimiter, wsLimiter } from './middleware/rateLimiter';
 import { validateUpload } from './middleware/validation';
-import swaggerUi from 'swagger-ui-express';
-import swaggerDocument from './swagger.json';
-import config from './config/environments';
+import helmet from 'helmet';
 
 dotenv.config();
 
@@ -36,13 +40,37 @@ app.use(cors({
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(cors());
+app.use(helmet());
 
 // Rate limiting
 app.use('/api', apiLimiter);
 app.use('/api/script/analyze', uploadLimiter);
 
 // Swagger documentation
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument, {
+  explorer: true
+}));
+
+// Dodaj statyczny plik inicjalizujący swagger
+app.get('/swagger-initializer.js', (req, res) => {
+  res.setHeader('Content-Type', 'text/javascript');
+  res.send(`window.onload = function() {
+    setTimeout(function() {
+      const apiKeyAuth = document.querySelector('.auth-wrapper .auth-btn-wrapper');
+      if (apiKeyAuth) {
+        apiKeyAuth.querySelector('button.authorize').click();
+        setTimeout(function() {
+          const authInput = document.querySelector('.auth-container input');
+          if (authInput) {
+            authInput.value = 'Bearer ${process.env.OPENAI_API_KEY}';
+            document.querySelector('.auth-btn-wrapper .btn-done').click();
+          }
+        }, 500);
+      }
+    }, 1000);
+  };`);
+});
 
 // Logowanie żądań
 app.use((req: express.Request, res: express.Response, next: express.NextFunction) => {
@@ -52,7 +80,9 @@ app.use((req: express.Request, res: express.Response, next: express.NextFunction
 
 // Routes
 app.use('/api', pdfRoutes);
-app.use('/api/script', scriptAnalysisRouter);
+app.use('/api/script', openaiAuth, scriptAnalysisRoutes);
+app.use('/api/upload-pdf', pdfRoutes);
+app.use('/api/test', openaiAuth, apiTestRoutes);
 
 // WebSocket connection handling
 wss.on('connection', (ws: WebSocketClient) => {
