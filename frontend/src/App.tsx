@@ -1,6 +1,6 @@
 // Projekt używa Material UI jako jedynego systemu stylowania
 import React, { useState, useEffect } from 'react';
-import { Box, Button, Container, Paper, Typography, CircularProgress, Snackbar, Alert, Stack, LinearProgress, Fade } from '@mui/material';
+import { Box, Button, Container, Paper, Typography, CircularProgress, Snackbar, Alert, Stack, LinearProgress, Fade, Toolbar } from '@mui/material';
 import { useDropzone } from 'react-dropzone';
 import PDFUpload from './components/PDFUpload';
 import UploadProgress from './components/UploadProgress';
@@ -10,8 +10,26 @@ import { OfflineManager } from './utils/offline';
 import { validateFile, formatFileSize } from './utils/fileValidation';
 import AnalysisMenu from './components/AnalysisMenu';
 import Graph from './components/Graph';
+import Sidebar from './components/Sidebar';
+import TopAppBar from './components/TopAppBar';
+import { CssBaseline, ThemeProvider, createTheme } from '@mui/material';
+import GraphView, { type Scene, type SceneRelation } from './components/GraphView';
+import ApiKeyInput from './components/ApiKeyInput';
+import FileUploader from './components/FileUploader';
 
 const MAX_SIZE_MB = 10;
+const drawerWidth = 240;
+
+// Przykładowe dane (docelowo z backendu)
+const scenes: Scene[] = [
+  { id: '1', title: 'Scena otwarcia', description: 'Bohater wchodzi do miasta.', characters: ['Anna', 'Jan'], x: 100, y: 100 },
+  { id: '2', title: 'Konflikt', description: 'Dochodzi do kłótni.', characters: ['Jan', 'Marek'], x: 400, y: 100 },
+  { id: '3', title: 'Finał', description: 'Wszyscy się godzą.', characters: ['Anna', 'Marek'], x: 250, y: 250 },
+];
+const relations: SceneRelation[] = [
+  { id: 'e1-2', source: '1', target: '2' },
+  { id: 'e2-3', source: '2', target: '3' },
+];
 
 function App() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -28,9 +46,27 @@ function App() {
   const [openaiApiKey, setOpenaiApiKey] = useState<string>('');
   const [currentSnippet, setCurrentSnippet] = useState<string>('');
   const [showSnippet, setShowSnippet] = useState<boolean>(false);
+  const [selectedSection, setSelectedSection] = useState<string>('Dashboard');
+  const [darkMode, setDarkMode] = useState<boolean>(true);
+  const [graphData, setGraphData] = useState<{ scenes: Scene[]; relations: SceneRelation[] } | null>(null);
+  const [graphLoading, setGraphLoading] = useState(false);
 
   const cache = Cache.getInstance();
   const offlineManager = OfflineManager.getInstance();
+
+  const theme = createTheme({
+    palette: {
+      mode: darkMode ? 'dark' : 'light',
+      primary: { main: '#FFB300' },
+      secondary: { main: '#FF6F00' },
+      background: {
+        default: darkMode ? '#181A20' : '#fff',
+        paper: darkMode ? '#23263A' : '#f5f5f5',
+      },
+    },
+    shape: { borderRadius: 16 },
+    typography: { fontFamily: 'Montserrat, Inter, Arial, sans-serif' },
+  });
 
   useEffect(() => {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -78,6 +114,17 @@ function App() {
       console.log('Otrzymano wyniki analizy:', analysisResult);
     }
   }, [analysisResult]);
+
+  useEffect(() => {
+    if (selectedSection === 'Graf') {
+      setGraphLoading(true);
+      fetch('/api/scenario/graph')
+        .then(res => res.json())
+        .then(data => setGraphData(data))
+        .catch(() => setGraphData(null))
+        .finally(() => setGraphLoading(false));
+    }
+  }, [selectedSection]);
 
   const onDrop = (acceptedFiles: File[]) => {
     if (acceptedFiles.length > 0) {
@@ -204,196 +251,53 @@ function App() {
 
   const handleSnackbarClose = () => setSnackbar(s => ({...s, open: false}));
 
+  const sectionComponents: Record<string, React.ReactNode> = {
+    'Dashboard': <Box p={4}><Typography variant="h4">Dashboard</Typography></Box>,
+    'Analiza scenariusza': <Box p={4}><Typography variant="h4">Analiza scenariusza</Typography></Box>,
+    'Graf': graphLoading
+      ? <Box p={4} display="flex" justifyContent="center"><CircularProgress /></Box>
+      : <GraphView scenes={graphData?.scenes} relations={graphData?.relations} />,
+    'Wyszukiwarka': <Box p={4}><Typography variant="h4">Wyszukiwarka</Typography></Box>,
+    'Czat z AI': <Box p={4}><Typography variant="h4">Czat z AI Agentem</Typography></Box>,
+    'Ustawienia': <Box p={4}><Typography variant="h4">Ustawienia</Typography></Box>,
+    'Pomoc': <Box p={4}><Typography variant="h4">Pomoc / Onboarding</Typography></Box>,
+  };
+
   return (
-    <Container maxWidth="lg" sx={{ minHeight: '100vh', bgcolor: 'background.default', py: 4 }}>
-      <Paper elevation={3} sx={{ p: { xs: 2, md: 4 }, mb: 4 }}>
-        <Typography variant="h4" component="h1" gutterBottom align="center">
-          Prześlij scenariusz
-        </Typography>
-        <Box sx={{ mb: 2 }}>
-          <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
-            Klucz OpenAI API
-          </Typography>
-          <input
-            type="text"
-            value={openaiApiKey}
-            onChange={e => setOpenaiApiKey(e.target.value)}
-            placeholder="sk-..."
-            aria-label="OpenAI API Key"
-            required
-            style={{ width: '100%', padding: 8, borderRadius: 4, border: '1px solid #ccc' }}
-          />
-          <Typography variant="caption" color="text.secondary">
-            Wprowadź swój klucz OpenAI API (np. zaczynający się od sk-)
-          </Typography>
-        </Box>
-        <Box
-          {...getRootProps()}
-          sx={{
-            border: '2px dashed',
-            borderColor: isDragActive ? 'primary.main' : 'grey.400',
-            borderRadius: 2,
-            p: 4,
-            textAlign: 'center',
-            cursor: 'pointer',
-            bgcolor: isDragActive ? 'grey.100' : 'background.paper',
-            transition: 'border-color 0.2s',
-            outline: 'none',
-            mb: 2
-          }}
-          aria-label="Strefa przesyłania pliku PDF"
-          tabIndex={0}
-        >
-          <input {...getInputProps()} aria-label="Wybierz plik PDF" />
-          <Typography color={isDragActive ? 'primary.main' : 'text.secondary'}>
-            {isDragActive ? 'Upuść plik tutaj...' : 'Przeciągnij i upuść plik PDF tutaj, lub kliknij aby wybrać plik'}
-          </Typography>
-        </Box>
-        {selectedFile && (
-          <Box sx={{ mt: 2 }}>
-            <Typography color="text.secondary">Wybrany plik: {selectedFile.name}</Typography>
-            <Stack direction="row" spacing={2} sx={{ mt: 2 }}>
-              <Button
-                variant="contained"
-                color="primary"
-                onClick={handleSubmit}
-                disabled={isUploading}
-                aria-label="Prześlij plik"
-              >
-                {isUploading ? <CircularProgress size={24} color="inherit" /> : 'Prześlij'}
-              </Button>
-              <Button
-                variant="outlined"
-                color="secondary"
-                onClick={() => setSelectedFile(null)}
-                aria-label="Anuluj wybór pliku"
-              >
-                Anuluj
-              </Button>
-            </Stack>
-          </Box>
-        )}
-        {analysisProgress && (
-          <Box sx={{ mt: 2 }}>
-            <CircularProgress size={24} color="primary" />
-            <Typography sx={{ ml: 2 }} component="span">{analysisProgress.message}</Typography>
-          </Box>
-        )}
-        {error && (
-          <Alert severity="error" sx={{ mt: 2 }}>{error}</Alert>
-        )}
-        {uploadStatus && (
-          <Alert severity="success" sx={{ mt: 2 }}>{uploadStatus}</Alert>
-        )}
-      </Paper>
-      <Stack direction={{ xs: 'column', md: 'row' }} spacing={4}>
-        <Box sx={{ width: { xs: '100%', md: '25%' } }}>
-          <AnalysisMenu activeSection={activeSection} onSectionChange={setActiveSection} />
-        </Box>
-        <Box sx={{ width: { xs: '100%', md: '75%' } }}>
-          {activeSection === 'Metadane produkcji' && (
-            <Paper elevation={2} sx={{ p: 3, mb: 2 }}>
-              <Typography variant="h5" gutterBottom>Metadane produkcji</Typography>
-              <Typography color="text.secondary">(Tu pojawią się metadane produkcji po analizie PDF)</Typography>
-            </Paper>
-          )}
-          {activeSection === 'Struktura scen' && (
-            <Paper elevation={2} sx={{ p: 3, mb: 2 }}>
-              <Typography variant="h5" gutterBottom>Struktura scen</Typography>
-              <Typography color="text.secondary">(Tu pojawi się struktura scen)</Typography>
-            </Paper>
-          )}
-          {activeSection === 'Postaci' && (
-            <Paper elevation={2} sx={{ p: 3, mb: 2 }}>
-              <Typography variant="h5" gutterBottom>Postaci</Typography>
-              <Typography color="text.secondary">(Tu pojawi się lista postaci)</Typography>
-            </Paper>
-          )}
-          {activeSection === 'Relacje' && (
-            <Paper elevation={2} sx={{ p: 3, mb: 2 }}>
-              <Typography variant="h5" gutterBottom>Relacje</Typography>
-              <Typography color="text.secondary">(Tu pojawi się macierz relacji)</Typography>
-            </Paper>
-          )}
-          {activeSection === 'Tematy i klastery' && (
-            <Paper elevation={2} sx={{ p: 3, mb: 2 }}>
-              <Typography variant="h5" gutterBottom>Tematy i klastery</Typography>
-              <Typography color="text.secondary">(Tu pojawią się tematy i klastery)</Typography>
-            </Paper>
-          )}
-          {activeSection === 'Zasoby produkcyjne' && (
-            <Paper elevation={2} sx={{ p: 3, mb: 2 }}>
-              <Typography variant="h5" gutterBottom>Zasoby produkcyjne</Typography>
-              <Typography color="text.secondary">(Tu pojawią się zasoby produkcyjne)</Typography>
-            </Paper>
-          )}
-          {activeSection === 'Pacing & statystyki techniczne' && (
-            <Paper elevation={2} sx={{ p: 3, mb: 2 }}>
-              <Typography variant="h5" gutterBottom>Pacing & statystyki techniczne</Typography>
-              <Typography color="text.secondary">(Tu pojawią się statystyki techniczne)</Typography>
-            </Paper>
-          )}
-          {activeSection === 'Budżetowe czerwone flagi' && (
-            <Paper elevation={2} sx={{ p: 3, mb: 2 }}>
-              <Typography variant="h5" gutterBottom>Budżetowe czerwone flagi</Typography>
-              <Typography color="text.secondary">(Tu pojawią się flagi budżetowe)</Typography>
-            </Paper>
-          )}
-          {activeSection === 'Ekstra' && (
-            <Paper elevation={2} sx={{ p: 3, mb: 2 }}>
-              <Typography variant="h5" gutterBottom>Ekstra</Typography>
-              <Typography color="text.secondary">(Tu pojawią się dodatkowe insighty)</Typography>
-            </Paper>
-          )}
-          {activeSection === 'Graf' && <Graph />}
-        </Box>
-      </Stack>
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={6000}
-        onClose={handleSnackbarClose}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      >
-        <Alert onClose={handleSnackbarClose} severity={snackbar.severity}>
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
-      
-      {/* Debug panel - wyświetla dane analizy */}
-      {analysisResult && (
-        <Paper elevation={3} sx={{ p: 3, mt: 2, background: '#f5f5f5' }}>
-          <Typography variant="h6">Dane analizy (Debug):</Typography>
-          {/* Wyświetl szczegóły analizy jeśli istnieją */}
-          {analysisResult.analysis.metadata ? (
-            <Box>
-              <Typography variant="subtitle1" fontWeight="bold" mt={2}>Metadane:</Typography>
-              <Box ml={2}>
-                <Typography>Tytuł: {analysisResult.analysis.metadata.title || 'Brak'}</Typography>
-                <Typography>Autorzy: {(analysisResult.analysis.metadata.authors || []).join(', ') || 'Brak'}</Typography>
-                <Typography>Liczba scen: {analysisResult.analysis.metadata.scene_count || 0}</Typography>
-                <Typography>Język: {analysisResult.analysis.metadata.detected_language || 'Brak'}</Typography>
-              </Box>
-              <Typography variant="subtitle1" fontWeight="bold" mt={2}>Podsumowanie:</Typography>
-              <Typography ml={2}>{analysisResult.extra?.overall_summary || 'Brak podsumowania'}</Typography>
-              {/* Wyświetl liczby dostępnych elementów */}
-              <Typography variant="subtitle1" fontWeight="bold" mt={2}>Dostępne dane:</Typography>
-              <Box ml={2}>
-                <Typography>Postacie: {analysisResult.characters?.length || 0}</Typography>
-                <Typography>Sceny: {analysisResult.scenes?.length || 0}</Typography>
-                <Typography>Relacje: {analysisResult.relationships?.length || 0}</Typography>
-                <Typography>Tematy: {analysisResult.topics?.length || 0}</Typography>
-              </Box>
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+      <Box sx={{ display: 'flex' }}>
+        <Sidebar selected={selectedSection} onSelect={setSelectedSection} />
+        <Box sx={{ flexGrow: 1, ml: `${drawerWidth}px` }}>
+          <TopAppBar darkMode={darkMode} onToggleTheme={() => setDarkMode((d) => !d)} />
+          <Toolbar />
+          <Box sx={{ px: 4, pt: 2, pb: 2, display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 3, alignItems: 'flex-start' }}>
+            <Box sx={{ flex: 1, minWidth: 260 }}>
+              <ApiKeyInput
+                label="OpenAI API Key"
+                initialValue={openaiApiKey}
+                onSave={setOpenaiApiKey}
+              />
             </Box>
-          ) : (
-            <Box>
-              <pre style={{ overflow: 'auto', maxHeight: '200px' }}>
-                {JSON.stringify(analysisResult, null, 2)}
-              </pre>
+            <Box sx={{ flex: 2, minWidth: 320 }}>
+              <FileUploader
+                apiKey={openaiApiKey}
+                model="gpt-4-turbo-2024-04-09"
+                endpoint="/api/script/analyze"
+                fieldName="script"
+                requireApiKey={true}
+                onUploadSuccess={(file, response) => {
+                  setSnackbar({ open: true, message: 'Plik przesłany! Analiza rozpoczęta.', severity: 'success' });
+                  // Możesz tu dodać dalszą obsługę, np. odświeżenie wyników
+                }}
+                onUploadError={(error) => setSnackbar({ open: true, message: error, severity: 'error' })}
+              />
             </Box>
-          )}
-        </Paper>
-      )}
-    </Container>
+          </Box>
+          {sectionComponents[selectedSection]}
+        </Box>
+      </Box>
+    </ThemeProvider>
   );
 }
 

@@ -3,16 +3,17 @@ import { Stack, Button, Typography } from '@mui/material';
 import type { AnalysisSection } from '../types';
 
 const sections: { key: AnalysisSection; label: string }[] = [
-  { key: 'Metadane produkcji', label: 'Metadane produkcji' },
-  { key: 'Struktura scen', label: 'Struktura scen' },
-  { key: 'Postaci', label: 'Postaci' },
-  { key: 'Relacje', label: 'Relacje' },
-  { key: 'Tematy i klastery', label: 'Tematy i klastery' },
-  { key: 'Zasoby produkcyjne', label: 'Zasoby produkcyjne' },
-  { key: 'Pacing & statystyki techniczne', label: 'Pacing & statystyki techniczne' },
-  { key: 'Budżetowe czerwone flagi', label: 'Budżetowe czerwone flagi' },
-  { key: 'Ekstra', label: 'Ekstra' },
-  { key: 'Graf', label: 'Graf relacji' },
+  { key: 'METADANE PRODUKCJI', label: 'METADANE PRODUKCJI' },
+  { key: 'STRUKTURA SCEN', label: 'STRUKTURA SCEN' },
+  { key: 'POSTACI', label: 'POSTACI' },
+  { key: 'RELACJE', label: 'RELACJE' },
+  { key: 'TEMATY I KLASTERY', label: 'TEMATY I KLASTERY' },
+  { key: 'ZASOBY PRODUKCYJNE', label: 'ZASOBY PRODUKCYJNE' },
+  { key: 'PACING & STATYSTYKI', label: 'PACING & STATYSTYKI' },
+  { key: 'TECHNICZNE', label: 'TECHNICZNE' },
+  { key: 'BUDŻETOWE CZERWONE FLAGI', label: 'BUDŻETOWE CZERWONE FLAGI' },
+  { key: 'EKSTRA', label: 'EKSTRA' },
+  { key: 'GRAF RELACJI', label: 'GRAF RELACJI' },
 ];
 
 interface AnalysisMenuProps {

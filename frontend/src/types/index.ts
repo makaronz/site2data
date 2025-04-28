@@ -1,14 +1,15 @@
 export type AnalysisSection =
-  | 'Metadane produkcji'
-  | 'Struktura scen'
-  | 'Postaci'
-  | 'Relacje'
-  | 'Tematy i klastery'
-  | 'Zasoby produkcyjne'
-  | 'Pacing & statystyki techniczne'
-  | 'Budżetowe czerwone flagi'
-  | 'Ekstra'
-  | 'Graf';
+  | 'METADANE PRODUKCJI'
+  | 'STRUKTURA SCEN'
+  | 'POSTACI'
+  | 'RELACJE'
+  | 'TEMATY I KLASTERY'
+  | 'ZASOBY PRODUKCYJNE'
+  | 'PACING & STATYSTYKI'
+  | 'TECHNICZNE'
+  | 'BUDŻETOWE CZERWONE FLAGI'
+  | 'EKSTRA'
+  | 'GRAF RELACJI';
 
 export interface WebSocketMessage {
   type: string;
