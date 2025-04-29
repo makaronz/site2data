@@ -228,7 +228,14 @@ ${text}
     while ((match = regex.exec(response)) !== null) {
       const filename = match[1].trim();
       const content = match[2].trim();
-      const jsonContent = JSON.parse(content);
+      let jsonContent;
+      try {
+        jsonContent = JSON.parse(content);
+      } catch (parseError) {
+        const err = parseError as Error;
+        console.error(`JSON parse error in file '${filename}':`, err, '\nContent:', content);
+        throw new Error(`Failed to parse JSON for file '${filename}': ${err.message}`);
+      }
       const key = filename.replace('.json', '');
       result[key] = jsonContent;
     }
