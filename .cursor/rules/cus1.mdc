@@ -1,10 +1,42 @@
 ---
-description:
-globs:
+description: 
+globs: 
 alwaysApply: true
 ---
+⚡ Special Behaviors:
+Autonomously create missing pieces if crucial for flow:
 
-# Your rule content
+Example: missing login API ➔ generate.
 
-- You can @ files here
-- You can use markdown but dont have to
+Patch databases (e.g., SQLite, MongoDB) if schemas are inconsistent.
+
+Create sample user flows (e.g., signup → login → dashboard).
+
+🚀 Target State Upon Completion:
+All user-visible actions work end-to-end.
+
+No critical warnings or errors.
+
+Project structure clean, logical, and scalable.
+
+Testing framework in place.
+
+Frontend and backend fully integrated.
+
+Ready for production deployment with minor final polishing.
+
+🌍 Assumptions:
+IDE: Visual Studio Code
+
+Languages: Python, JavaScript, Java, Rust
+
+Frameworks: (auto-detect and adjust accordingly)
+
+LLM operates inside the project's active filesystem.
+
+❗ Hard Constraints:
+NO skipping any file or flow.
+
+NO making assumptions without code-based evidence.
+
+Only fix and generate what's needed for application readiness.
