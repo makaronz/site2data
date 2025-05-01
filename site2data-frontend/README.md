@@ -1,38 +1,60 @@
-# sv
+# Site2Data Frontend (SvelteKit)
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+---
 
-## Creating a project
+## Purpose
 
-If you're seeing this, you've probably already done this step. Congrats!
+This is the SvelteKit-based frontend for Site2Data – a platform for filmmakers to analyze film scripts and production documentation using AI/ML.
 
+---
+
+## Key Features
+- Upload and analyze film scripts (PDF)
+- Real-time progress and results via WebSocket
+- Dashboard for script structure, characters, relationships, and graph visualization
+- Seamless integration with backend AI/ML services
+
+---
+
+## Technologies
+- SvelteKit
+- TypeScript
+- TailwindCSS
+- Socket.IO
+- Material UI (where applicable)
+
+---
+
+## Directory Structure
+- `/src/routes` – SvelteKit routes and pages
+- `/src/lib` – Shared components and utilities
+- `/src/stores` – State management
+- `/src/types` – TypeScript types
+- `/static` – Static assets
+
+---
+
+## How to Run
+
+1. Install dependencies:
 ```bash
-# create a new project in the current directory
-npx sv create
-
-# create a new project in my-app
-npx sv create my-app
+npm install
 ```
-
-## Developing
-
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
-
+2. Start the development server:
 ```bash
 npm run dev
-
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
 ```
+3. Access the app at [http://localhost:5173](http://localhost:5173) (default)
 
-## Building
+---
 
-To create a production version of your app:
+## Development Workflow
+- All UI/UX should be tailored for filmmakers and script analysis
+- Use data-cy attributes for testability
+- Follow the Arrange-Act-Assert pattern in tests
+- See `CONTRIBUTING.md` for guidelines
 
-```bash
-npm run build
-```
+---
 
-You can preview the production build with `npm run preview`.
-
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+## License
+MIT License. See [LICENSE](../LICENSE).
