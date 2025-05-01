@@ -1,150 +1,98 @@
-# Site2Data 🌐
+# Site2Data
 
-Site2Data is an advanced platform for web content analysis and processing, leveraging artificial intelligence and machine learning for data extraction, analysis, and transformation from various internet sources.
+---
 
-## Key Features 🌟
+## Purpose and Audience
 
-- **Advanced ML Analysis**: Utilization of cutting-edge machine learning models for content analysis
-- **Data Extraction**: Intelligent data extraction from various formats (PDF, HTML, text)
-- **NLP Processing**: Advanced natural language processing using compromise and node-nlp libraries
-- **Real-time Analysis**: Real-time data processing using Socket.IO
-- **Secure Architecture**: Security implementation using Helmet and rate-limiting
-- **Scalability**: Docker containerization support and workspace dependency management
+**Site2Data** is an advanced platform for filmmakers, dedicated to the analysis of film scripts and, in the future, all film production documentation. It leverages AI/ML for extraction, analysis, and transformation of data from various sources (PDF, text, production documents).
 
-## Technical Requirements 🔧
+---
 
-- Node.js (v18 or higher)
-- MongoDB
-- Docker (optional)
+## Key Features
+- ML analysis (transformers, LangChain, embeddings)
+- Data extraction (PDF, text, film documentation)
+- NLP processing (compromise, node-nlp)
+- Real-time analysis (Socket.IO)
+- Secure architecture (Helmet, rate-limiting)
+- Scalable (Docker, workspace management)
 
-### Installation
+---
+
+## Workflow Example
+
+```mermaid
+graph TD
+    U[Filmmaker uploads PDF] --> P[PDF Parsing]
+    P --> S[Scene Splitting]
+    S --> C[Chunking]
+    C --> L[LLM Analysis (Prompt → JSON)]
+    L --> E[Embeddings]
+    E --> V[Vector DB (Weaviate)]
+    V --> Q[QA/Retrieval]
+    Q --> U2[Filmmaker queries script knowledge]
+```
+
+---
+
+## Technologies & Architecture
+- **Backend**: Node.js, Express, MongoDB
+- **ML/AI**: LangChain (JS/Python), OpenAI, Transformers
+- **Frontend**: SvelteKit, TailwindCSS
+- **Vector database**: Weaviate
+- **Testing**: Jest, Cypress
+- **DevOps**: Docker, docker-compose, Prometheus
+- **Cache**: Redis, FileSystemCache
+- **Architecture**: Monorepo, microservices for ML and embeddings
+
+---
+
+## Quick Start
 
 1. Clone the repository:
 ```bash
 git clone https://github.com/yourusername/site2data.git
 cd site2data
 ```
-
 2. Install dependencies:
 ```bash
 npm install
 ```
-
 3. Configure environment variables:
 ```bash
 cp .env.example .env
 # Edit .env file according to your configuration
 ```
-
 4. Run the application:
 ```bash
 # Development mode
 npm run dev
-
 # Production mode
 npm start
 ```
 
-## Available Scripts 📜
+---
 
-- `npm start` - Run the application
-- `npm run dev` - Run in development mode with hot-reloading
+## Testing
+
 - `npm test` - Run tests
 - `npm run lint` - Check code for errors
 - `npm run format` - Format code
-
-## Project Structure 📁
-
-- `/frontend` - Frontend application
-- `/backend` - Node.js server
-- `/tests` - Unit and integration tests
-- `/docs` - Documentation
-- `/tasks` - Task and process definitions
-- `/templates` - Templates
-- `/resources` - Static resources
-
-## Technologies 💻
-
-- **Backend**: Node.js, Express, MongoDB
-- **ML/AI**: Transformers, LangChain, Natural
-- **Tools**: Jest, ESLint, Prettier
-- **Security**: Helmet, Express Rate Limit
-- **UI**: TailwindCSS
-
-## Support 💬
-
-If you have questions or issues:
-- Open an Issue on GitHub
-- Check documentation in the `/docs` directory
-- Contact the development team
-
-## License 📄
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+- E2E and component tests: see `cypress/` and `src/**/*.cy.ts`
 
 ---
 
-Made with �� by Site2Data Team
+## Development & Contribution
+- See `CONTRIBUTING.md` for guidelines
+- All code and documentation should reflect the film industry focus
 
-# Testing
+---
 
-## Running Tests
+## Contact & Support
+- Open an Issue on GitHub
+- See documentation in `/docs`
+- Contact the development team
 
-### E2E Tests
-```bash
-npm run test:e2e
-```
+---
 
-### Component Tests
-```bash
-npm run test:component
-```
-
-### Opening Cypress UI
-```bash
-npm run test:open
-```
-
-## Test Structure
-
-- `cypress/e2e/` - End-to-end tests
-- `cypress/support/` - Support files and custom commands
-- `src/**/*.cy.ts` - Component tests
-
-## Writing Tests
-
-### Component Tests
-Component tests should be placed in the same directory as the component they test, with the `.cy.ts` extension.
-
-Example:
-```typescript
-import Component from './Component.svelte'
-
-describe('Component', () => {
-  it('renders correctly', () => {
-    cy.mount(Component)
-    // assertions
-  })
-})
-```
-
-### E2E Tests
-E2E tests should be placed in `cypress/e2e/` and follow the naming pattern `*.cy.ts`.
-
-Example:
-```typescript
-describe('Feature', () => {
-  it('should work correctly', () => {
-    cy.visit('/feature')
-    // interactions and assertions
-  })
-})
-```
-
-## Best Practices
-
-1. Use data-cy attributes for selecting elements
-2. Keep tests independent and isolated
-3. Use custom commands for common operations
-4. Follow the Arrange-Act-Assert pattern
-5. Write descriptive test names
+## License
+MIT License. See [LICENSE](LICENSE).
