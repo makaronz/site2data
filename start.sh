@@ -1,3 +1,4 @@
+
 #!/bin/bash
 set -e
 
@@ -71,7 +72,6 @@ if ! command -v docker-compose &> /dev/null; then
   handle_error "Docker Compose is not installed. Please install Docker Compose first."
 fi
 
-
 # Check if Docker daemon is running
 if ! docker info &> /dev/null; then
   echo "Error: Docker daemon is not running."
@@ -86,14 +86,13 @@ if ! docker info &> /dev/null; then
   else
     echo "  - Please start Docker daemon using your system's method"
   fi
-
+  
   # Clean up without trying to stop containers (since Docker isn't running)
   rm -f docker-compose.override.yml
   echo "Application could not be started. Docker daemon must be running first."
   exit 1
 fi
     
-
 # Create a docker-compose override file that sets both context and dockerfile
 cat > docker-compose.override.yml << EOL
 services:
@@ -275,4 +274,3 @@ else
   echo "To stop the application, run: $0 stop"
   echo "To view the application, open: $APP_URL"
 fi
-
