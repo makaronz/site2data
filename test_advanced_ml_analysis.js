@@ -8,7 +8,7 @@ async function testAdvancedMLAnalysis() {
     console.log('Testowanie zaawansowanej analizy emocjonalnej...');
     
     // Ścieżka do pliku scenariusza - poprawiona ścieżka
-    const scriptPath = path.join(__dirname, 'XMPS', 'DRUGA-FURIOZA 050624.pdf');
+    const scriptPath = path.join(__dirname, 'XMPS', 'PROJEKT-X 050624.pdf');
     
     if (!fs.existsSync(scriptPath)) {
       console.error(`Plik nie istnieje: ${scriptPath}`);

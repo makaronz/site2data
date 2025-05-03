@@ -10,7 +10,7 @@ describe('ScriptParser', () => {
 
   describe('parse', () => {
     it('should parse a valid script file', async () => {
-      const scriptPath = path.join(__dirname, '../../../../XMPS/DRUGA-FURIOZA 050624.pdf');
+      const scriptPath = path.join(__dirname, '../../../../XMPS/PROJEKT-X 050624.pdf');
       const result = await scriptParser.parse(scriptPath);
       
       expect(result).toBeDefined();
@@ -26,7 +26,7 @@ describe('ScriptParser', () => {
     });
 
     it('should correctly parse scene metadata', async () => {
-      const scriptPath = path.join(__dirname, '../../../../XMPS/DRUGA-FURIOZA 050624.pdf');
+      const scriptPath = path.join(__dirname, '../../../../XMPS/PROJEKT-X 050624.pdf');
       const result = await scriptParser.parse(scriptPath);
       
       const firstScene = result.scenes[0];
@@ -38,7 +38,7 @@ describe('ScriptParser', () => {
     });
 
     it('should correctly count total scenes and dialogues', async () => {
-      const scriptPath = path.join(__dirname, '../../../../XMPS/DRUGA-FURIOZA 050624.pdf');
+      const scriptPath = path.join(__dirname, '../../../../XMPS/PROJEKT-X 050624.pdf');
       const result = await scriptParser.parse(scriptPath);
       
       expect(result.metadata.totalScenes).toBeGreaterThan(0);

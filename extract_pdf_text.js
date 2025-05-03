@@ -1,8 +1,8 @@
 const fs = require('fs');
 const pdfParse = require('pdf-parse');
 
-const inputPath = 'uploads/Scenariusz filmu Fanatyk_Final.pdf';
-const outputPath = 'uploads/Scenariusz filmu Fanatyk_Final.txt';
+const inputPath = 'uploads/Scenariusz filmu Projekt-Y_Final.pdf';
+const outputPath = 'uploads/Scenariusz filmu Projekt-Y_Final.txt';
 
 (async () => {
   try {

@@ -24,8 +24,8 @@ async function testMultipleScripts() {
     
     // Ręcznie ustalamy ścieżki do znanych scenariuszy
     const knownScripts = [
-      'DRUGA-FURIOZA 050624.pdf',
-      'ZNACHOR - PP nr 9 - 23.03.2022 środa_FRETA WYPADEK + WILLA WILCZURA.pdf'
+      'PROJEKT-X 050624.pdf',
+      'LEKARZ - PP nr 9 - 23.03.2022 środa_FRETA WYPADEK + WILLA LISOWA.pdf'
     ];
     
     const results = [];

@@ -4,9 +4,18 @@ import { ScenarioChunkModel } from '../models/ScenarioChunk';
 /**
  * Zapisuje chunk-i do MongoDB z domyślnym statusem "pending".
  * @param scriptText Pełny tekst scenariusza
+ * @param status Status chunków, domyślnie "pending"
  */
-export const saveChunksToDb = async (scriptText: string) => {
+export const saveChunksToDb = async (scriptText: string, status: string = 'pending') => {
+  if (!scriptText) {
+    throw new Error('Script is empty');
+  }
+
   const chunks: ScenarioChunk[] = splitBySceneOrTokens(scriptText);
+  
+  if (chunks.length === 0) {
+    throw new Error('Script does not contain any chunks');
+  }
 
   // Mapowanie na dokumenty do bazy
   const docs = chunks.map(chunk => ({
@@ -14,7 +23,7 @@ export const saveChunksToDb = async (scriptText: string) => {
     index: chunk.index,
     title: chunk.title,
     text: chunk.text,
-    status: 'pending',
+    status: status,
   }));
 
   // Upsert (unikalność po id)

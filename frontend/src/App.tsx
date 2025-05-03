@@ -16,6 +16,10 @@ import { CssBaseline, ThemeProvider, createTheme } from '@mui/material';
 import GraphView, { type Scene, type SceneRelation } from './components/GraphView';
 import ApiKeyInput from './components/ApiKeyInput';
 import FileUploader from './components/FileUploader';
+import DownloadResults from './components/DownloadResults';
+import GraphVisualization from './components/GraphVisualization';
+// @ts-ignore
+import Papa from 'papaparse';
 
 const MAX_SIZE_MB = 10;
 const drawerWidth = 240;
@@ -31,6 +35,29 @@ const relations: SceneRelation[] = [
   { id: 'e2-3', source: '2', target: '3' },
 ];
 
+// Funkcje do parsowania CSV na obiekty Scene i SceneRelation
+function parseScenesCSV(csv: string): Scene[] {
+  const { data } = Papa.parse(csv, { header: true, skipEmptyLines: true });
+  return (data as any[]).map(row => ({
+    id: String(row.id),
+    title: row.title || '',
+    description: row.description || '',
+    characters: row.characters ? String(row.characters).split(',').map((c: string) => c.trim()) : [],
+    x: row.x ? Number(row.x) : undefined,
+    y: row.y ? Number(row.y) : undefined,
+  }));
+}
+
+function parseRelationsCSV(csv: string): SceneRelation[] {
+  const { data } = Papa.parse(csv, { header: true, skipEmptyLines: true });
+  return (data as any[]).map(row => ({
+    id: String(row.id),
+    source: String(row.source),
+    target: String(row.target),
+    type: row.type || undefined,
+  }));
+}
+
 function App() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadStatus, setUploadStatus] = useState<string>('');
@@ -41,7 +68,7 @@ function App() {
   const [pdfText, setPdfText] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
-  const [activeSection, setActiveSection] = useState<AnalysisSection>('Metadane produkcji');
+  const [activeSection, setActiveSection] = useState<AnalysisSection>('METADANE PRODUKCJI');
   const [snackbar, setSnackbar] = useState<{open: boolean, message: string, severity: 'success'|'error'|'info'|'warning'}>({open: false, message: '', severity: 'info'});
   const [openaiApiKey, setOpenaiApiKey] = useState<string>('');
   const [currentSnippet, setCurrentSnippet] = useState<string>('');
@@ -50,6 +77,7 @@ function App() {
   const [darkMode, setDarkMode] = useState<boolean>(true);
   const [graphData, setGraphData] = useState<{ scenes: Scene[]; relations: SceneRelation[] } | null>(null);
   const [graphLoading, setGraphLoading] = useState(false);
+  const [scriptId, setScriptId] = useState<string | null>(null);
 
   const cache = Cache.getInstance();
   const offlineManager = OfflineManager.getInstance();
@@ -116,15 +144,21 @@ function App() {
   }, [analysisResult]);
 
   useEffect(() => {
-    if (selectedSection === 'Graf') {
+    if (selectedSection === 'Graf' && scriptId) {
       setGraphLoading(true);
-      fetch('/api/scenario/graph')
-        .then(res => res.json())
-        .then(data => setGraphData(data))
+      Promise.all([
+        fetch(`/api/script/${scriptId}/graph/nodes`).then(res => res.ok ? res.text() : null),
+        fetch(`/api/script/${scriptId}/graph/edges`).then(res => res.ok ? res.text() : null)
+      ])
+        .then(([nodesCsv, edgesCsv]) => {
+          const scenes = nodesCsv ? parseScenesCSV(nodesCsv) : [];
+          const relations = edgesCsv ? parseRelationsCSV(edgesCsv) : [];
+          setGraphData({ scenes, relations });
+        })
         .catch(() => setGraphData(null))
         .finally(() => setGraphLoading(false));
     }
-  }, [selectedSection]);
+  }, [selectedSection, scriptId]);
 
   const onDrop = (acceptedFiles: File[]) => {
     if (acceptedFiles.length > 0) {
@@ -184,7 +218,7 @@ function App() {
       if (response.ok) {
         setSnackbar({open: true, message: 'Plik został pomyślnie przesłany!', severity: 'success'});
         setSelectedFile(null);
-        
+        if (data.id) setScriptId(data.id);
         if (data.result) {
           setAnalysisResult(data.result);
           if (selectedFile) cache.set(selectedFile.name, data.result);
@@ -253,7 +287,146 @@ function App() {
 
   const sectionComponents: Record<string, React.ReactNode> = {
     'Dashboard': <Box p={4}><Typography variant="h4">Dashboard</Typography></Box>,
-    'Analiza scenariusza': <Box p={4}><Typography variant="h4">Analiza scenariusza</Typography></Box>,
+    'Analiza scenariusza': (
+      <Box p={4}>
+        <Typography variant="h4" gutterBottom>Analiza scenariusza</Typography>
+        {analysisResult ? (
+          <Box sx={{ display: 'flex', gap: 4 }}>
+            <Box>
+              <AnalysisMenu activeSection={activeSection} onSectionChange={setActiveSection} />
+              {scriptId && <Box mt={2}><DownloadResults jobId={scriptId} /></Box>}
+            </Box>
+            <Box sx={{ flex: 1 }}>
+              {activeSection === 'METADANE PRODUKCJI' && analysisResult.metadata && (
+                <Box component="table" sx={{ width: '100%', borderCollapse: 'collapse', mb: 2 }}>
+                  <tbody>
+                    {Object.entries(analysisResult.metadata).map(([key, value]) => (
+                      <tr key={key}>
+                        <td style={{ fontWeight: 700, padding: 4, borderBottom: '1px solid #333' }}>{key}</td>
+                        <td style={{ padding: 4, borderBottom: '1px solid #333' }}>{String(value)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </Box>
+              )}
+              {activeSection === 'STRUKTURA SCEN' && Array.isArray(analysisResult.scenes) && (
+                <Box>
+                  {analysisResult.scenes.map((scene: any, idx: number) => (
+                    <Box key={scene.id || idx} mb={2} p={2} borderRadius={2} boxShadow={1} bgcolor="#23263A">
+                      <Typography variant="subtitle1" fontWeight={700}>{scene.title}</Typography>
+                      <Typography variant="body2" color="text.secondary">{scene.description}</Typography>
+                      {scene.characters && (
+                        <Typography variant="body2" mt={1}>Postacie: {scene.characters.join(', ')}</Typography>
+                      )}
+                    </Box>
+                  ))}
+                </Box>
+              )}
+              {activeSection === 'POSTACI' && Array.isArray(analysisResult.characters) && (
+                <Box component="table" sx={{ width: '100%', borderCollapse: 'collapse', mb: 2 }}>
+                  <thead>
+                    <tr>
+                      <th>Imię</th>
+                      <th>Opis</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {analysisResult.characters.map((char: any, idx: number) => (
+                      <tr key={char.id || idx}>
+                        <td style={{ fontWeight: 700, padding: 4, borderBottom: '1px solid #333' }}>{char.name}</td>
+                        <td style={{ padding: 4, borderBottom: '1px solid #333' }}>{char.description || '-'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </Box>
+              )}
+              {activeSection === 'RELACJE' && Array.isArray(analysisResult.relationships) && (
+                <Box component="table" sx={{ width: '100%', borderCollapse: 'collapse', mb: 2 }}>
+                  <thead>
+                    <tr>
+                      <th>Źródło</th>
+                      <th>Cel</th>
+                      <th>Typ</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {analysisResult.relationships.map((rel: any, idx: number) => (
+                      <tr key={rel.id || idx}>
+                        <td style={{ padding: 4, borderBottom: '1px solid #333' }}>{rel.source}</td>
+                        <td style={{ padding: 4, borderBottom: '1px solid #333' }}>{rel.target}</td>
+                        <td style={{ padding: 4, borderBottom: '1px solid #333' }}>{rel.type || '-'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </Box>
+              )}
+              {activeSection === 'TEMATY I KLASTERY' && Array.isArray(analysisResult.topics) && (
+                <Box>
+                  {analysisResult.topics.map((topic: any, idx: number) => (
+                    <Box key={topic.id || idx} mb={2} p={2} borderRadius={2} boxShadow={1} bgcolor="#23263A">
+                      <Typography variant="subtitle1" fontWeight={700}>{topic.label || topic.name}</Typography>
+                      {topic.keywords && (
+                        <Typography variant="body2" color="text.secondary">Słowa kluczowe: {topic.keywords.join(', ')}</Typography>
+                      )}
+                    </Box>
+                  ))}
+                </Box>
+              )}
+              {activeSection === 'ZASOBY PRODUKCYJNE' && Array.isArray(analysisResult.productionResources) && (
+                <Box component="table" sx={{ width: '100%', borderCollapse: 'collapse', mb: 2 }}>
+                  <thead>
+                    <tr>
+                      <th>Nazwa</th>
+                      <th>Typ</th>
+                      <th>Ilość</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {analysisResult.productionResources.map((res: any, idx: number) => (
+                      <tr key={res.id || idx}>
+                        <td style={{ padding: 4, borderBottom: '1px solid #333' }}>{res.name}</td>
+                        <td style={{ padding: 4, borderBottom: '1px solid #333' }}>{res.type}</td>
+                        <td style={{ padding: 4, borderBottom: '1px solid #333' }}>{res.amount ?? '-'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </Box>
+              )}
+              {(activeSection === 'PACING & STATYSTYKI' || activeSection === 'TECHNICZNE') && analysisResult.technicalStats && (
+                <Box component="table" sx={{ width: '100%', borderCollapse: 'collapse', mb: 2 }}>
+                  <tbody>
+                    {Object.entries(analysisResult.technicalStats).map(([key, value]) => (
+                      <tr key={key}>
+                        <td style={{ fontWeight: 700, padding: 4, borderBottom: '1px solid #333' }}>{key}</td>
+                        <td style={{ padding: 4, borderBottom: '1px solid #333' }}>{String(value)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </Box>
+              )}
+              {activeSection === 'BUDŻETOWE CZERWONE FLAGI' && Array.isArray(analysisResult.budgetFlags) && (
+                <Box>
+                  {analysisResult.budgetFlags.map((flag: any, idx: number) => (
+                    <Box key={flag.id || idx} mb={2} p={2} borderRadius={2} boxShadow={1} bgcolor="#d32f2f22">
+                      <Typography variant="subtitle1" fontWeight={700} color="#d32f2f">{flag.label || flag.name}</Typography>
+                      <Typography variant="body2" color="text.secondary">{flag.description}</Typography>
+                    </Box>
+                  ))}
+                </Box>
+              )}
+              {activeSection === 'EKSTRA' && (
+                <pre>{JSON.stringify(analysisResult.extra, null, 2)}</pre>
+              )}
+              {activeSection === 'GRAF RELACJI' && scriptId && (
+                <GraphVisualization scriptId={scriptId} />
+              )}
+            </Box>
+          </Box>
+        ) : (
+          <Typography variant="body1">Prześlij plik PDF i poczekaj na wyniki analizy.</Typography>
+        )}
+      </Box>
+    ),
     'Graf': graphLoading
       ? <Box p={4} display="flex" justifyContent="center"><CircularProgress /></Box>
       : <GraphView scenes={graphData?.scenes} relations={graphData?.relations} />,

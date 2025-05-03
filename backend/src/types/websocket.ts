@@ -14,10 +14,12 @@ export interface WebSocketClient extends WebSocket {
   send(data: string): void;
 }
 
+export type WebSocketMessageType = 'ANALYZE_SCRIPT' | 'PROGRESS' | 'ANALYSIS_RESULT' | 'ERROR';
+
 // Osobne typy wiadomości
 export interface AnalyzeScriptMessage {
   type: 'ANALYZE_SCRIPT';
-  script: Buffer;
+  script: Buffer | string;
 }
 
 export interface ProgressMessage {
@@ -29,7 +31,7 @@ export interface ProgressMessage {
 
 export interface AnalysisResultMessage {
   type: 'ANALYSIS_RESULT';
-  result?: AnalysisResult;
+  result: AnalysisResult;
 }
 
 export interface ErrorMessage {
@@ -69,5 +71,25 @@ export interface AnalysisResult {
       analysis_timestamp: string;
     };
     overall_summary: string;
+    characters?: {
+      name: string;
+      role: string;
+      description?: string;
+      scenes?: string[];
+    }[];
+    scenes?: {
+      id: string;
+      location: string;
+      time: string;
+      characters: string[];
+      description: string;
+    }[];
+    relationships?: {
+      character_a: string;
+      character_b: string;
+      strength: number;
+      overall_sentiment: number;
+      key_scenes: string[];
+    }[];
   };
 } 

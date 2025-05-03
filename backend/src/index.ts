@@ -4,15 +4,15 @@ import dotenv from 'dotenv';
 import { createServer } from 'http';
 import { WebSocket, WebSocketServer } from 'ws';
 import swaggerUi from 'swagger-ui-express';
-import swaggerDocument from './swagger.json';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import config from './config/environments';
 import scriptAnalysisRoutes from './routes/scriptAnalysis';
 import pdfRoutes from './routes/pdfRoutes';
 import apiTestRoutes from './routes/apiTest';
 import { openaiAuth } from './middleware/openaiAuth';
-import path from 'path';
 import multer from 'multer';
-import fs from 'fs';
 import scriptAnalysisRouter, { handleWebSocket } from './routes/scriptAnalysis';
 import { WebSocketClient } from './types/websocket';
 import { apiLimiter, uploadLimiter, wsLimiter } from './middleware/rateLimiter';
@@ -23,7 +23,14 @@ dotenv.config();
 
 const app = express();
 const server = createServer(app);
-const PORT = config.port;
+const PORT = 5001;
+
+// Inicjalizacja dokumentacji Swagger
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const swaggerPath = path.join(__dirname, 'swagger.json');
+const swaggerContent = fs.readFileSync(swaggerPath, 'utf8');
+const swaggerDocument = JSON.parse(swaggerContent);
 
 // WebSocket setup
 const wss = new WebSocketServer({ 
@@ -136,6 +143,12 @@ app.use((req: express.Request, res: express.Response) => {
     success: false,
     message: 'Nie znaleziono zasobu'
   });
+});
+
+// Dodaj to po utworzeniu serwera HTTP
+server.on('error', (err) => {
+  console.error('Server error:', err);
+  process.exit(1);
 });
 
 server.listen(PORT, () => {

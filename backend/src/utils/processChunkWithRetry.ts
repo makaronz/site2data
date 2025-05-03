@@ -25,7 +25,7 @@ export const processChunkWithRetry = async (
 
     if (result.success) {
       const validation = validateChunk(result.data);
-      if (validation.valid) {
+      if (validation.isValid) {
         return { success: true, data: result.data };
       } else {
         lastError = 'Validation failed: ' + (validation.errors || []).join('; ');
@@ -42,7 +42,7 @@ export const processChunkWithRetry = async (
 
     if (fixResult.success) {
       const validation = validateChunk(fixResult.data);
-      if (validation.valid) {
+      if (validation.isValid) {
         return { success: true, data: fixResult.data };
       } else {
         lastError = 'Validation after fix failed: ' + (validation.errors || []).join('; ');

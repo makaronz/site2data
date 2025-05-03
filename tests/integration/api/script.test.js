@@ -6,7 +6,7 @@ const fs = require('fs');
 describe('Script API Endpoints', () => {
   describe('POST /api/script/upload', () => {
     it('should upload a script file successfully', async () => {
-      const scriptPath = path.join(__dirname, '../../../XMPS/DRUGA-FURIOZA 050624.pdf');
+      const scriptPath = path.join(__dirname, '../../../XMPS/PROJEKT-X 050624.pdf');
       const response = await request(app)
         .post('/api/script/upload')
         .attach('script', scriptPath);
@@ -31,7 +31,7 @@ describe('Script API Endpoints', () => {
     let scriptId;
 
     beforeEach(async () => {
-      const scriptPath = path.join(__dirname, '../../../XMPS/DRUGA-FURIOZA 050624.pdf');
+      const scriptPath = path.join(__dirname, '../../../XMPS/PROJEKT-X 050624.pdf');
       const uploadResponse = await request(app)
         .post('/api/script/upload')
         .attach('script', scriptPath);
@@ -61,7 +61,7 @@ describe('Script API Endpoints', () => {
     let scriptId;
 
     beforeEach(async () => {
-      const scriptPath = path.join(__dirname, '../../../XMPS/DRUGA-FURIOZA 050624.pdf');
+      const scriptPath = path.join(__dirname, '../../../XMPS/PROJEKT-X 050624.pdf');
       const uploadResponse = await request(app)
         .post('/api/script/upload')
         .attach('script', scriptPath);

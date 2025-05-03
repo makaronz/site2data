@@ -9,12 +9,14 @@ This is the Node.js backend for Site2Data – a platform for filmmakers to analy
 ---
 
 ## Key Features
-- REST API for uploading and analyzing film scripts (PDF)
-- Integration with AI/ML services (LangChain, OpenAI)
-- Chunking, parsing, and scene extraction
-- Real-time progress via WebSocket/SSE
+- REST API for uploading and analyzing film scripts (PDF, text)
+- Integration with AI/ML services (LangChain, OpenAI, Transformers)
+- Scene splitting, character and relationship detection
+- Real-time progress tracking and job status (WebSocket/EventSource)
 - Embedding and vector search (Weaviate)
-- Secure, scalable, and modular architecture
+- Secure, scalable, and modular architecture (Docker, monorepo)
+- Comprehensive test coverage (unit, integration, E2E)
+- Data anonymization for demo/test flows
 
 ---
 
@@ -55,10 +57,13 @@ npm run dev
 ## API Overview
 - See OpenAPI/Swagger docs at `/api-docs` when the server is running
 - Main endpoints:
-  - `POST /api/script/analyze` – Upload and analyze a film script
+  - `POST /api/script/upload` – Upload a film script
+  - `POST /api/script/analyze` – Analyze a film script
   - `GET /api/script/{id}/result` – Get analysis results
   - `GET /api/script/{id}/graph` – Download relationship graph
   - `GET /api/progress/{jobId}` – Real-time progress
+  - `GET /api/script/analysis/{id}` – Get advanced ML analysis (planned)
+  - `GET /api/export/{id}` – Export results (planned)
 
 ---
 
@@ -71,4 +76,34 @@ npm run dev
 ---
 
 ## License
-MIT License. See [LICENSE](../LICENSE). 
+MIT License. See [LICENSE](../LICENSE).
+
+---
+
+## Data Anonymization Notice
+
+All film titles and character names used in backend examples, tests, and data files are fictional and anonymized. Any resemblance to real films or persons is coincidental. This ensures compliance with copyright and privacy requirements for demo and test data. 
+
+---
+
+## Roadmap & Progress
+
+### Recently Completed
+- Pełna anonimizacja danych testowych i przykładowych (tytuły, postacie)
+- Progres tracker: śledzenie statusu analizy (upload, chunking, analyzing, graph)
+- API: upload, analiza, pobieranie wyników, pobieranie grafu relacji
+- Testy jednostkowe i integracyjne dla parsera i API
+
+### In Progress
+- Eksport wyników analizy do różnych formatów (CSV, JSON, PDF)
+- Timeline scen i wizualizacja przepływu narracji
+- Risk-radar: analiza ryzyk i punktów zwrotnych w scenariuszu
+- Ulepszona obsługa relacji postaci (typy, siła, sentyment)
+- Integracje z zewnętrznymi narzędziami produkcyjnymi
+
+### Planned
+- Zaawansowane filtry i wyszukiwanie po metadanych
+- Automatyczne generowanie raportów produkcyjnych
+- Wsparcie dla kolejnych formatów (Fountain, Final Draft, itp.)
+- Rozbudowana dokumentacja API (OpenAPI/Swagger)
+- Pełna internacjonalizacja (i18n) 

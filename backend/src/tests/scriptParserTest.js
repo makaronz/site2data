@@ -11,9 +11,9 @@ async function runTest() {
     console.log('Inicjalizacja parsera...');
     const parser = new ModernScriptParser();
     
-    // Ścieżka do scenariusza Fanatyka
-    const scriptPath = join(__dirname, 'samples', 'Scenariusz filmu Fanatyk_Final.pdf');
-    const scriptName = 'Scenariusz filmu Fanatyk_Final.pdf';
+    // Ścieżka do scenariusza Projekt-Y
+    const scriptPath = join(__dirname, 'samples', 'Scenariusz filmu Projekt-Y_Final.pdf');
+    const scriptName = 'Scenariusz filmu Projekt-Y_Final.pdf';
     
     console.log('Wczytywanie scenariusza...');
     const scriptContent = await fs.readFile(scriptPath);

@@ -9,12 +9,25 @@
 ---
 
 ## Key Features
-- ML analysis (transformers, LangChain, embeddings)
-- Data extraction (PDF, text, film documentation)
+- Advanced ML/AI analysis (transformers, LangChain, OpenAI, embeddings)
+- Automated extraction and structuring of film scripts (PDF, text, production docs)
+- Scene splitting, character and relationship detection
 - NLP processing (compromise, node-nlp)
-- Real-time analysis (Socket.IO)
-- Secure architecture (Helmet, rate-limiting)
-- Scalable (Docker, workspace management)
+- Real-time progress tracking and job status (WebSocket/EventSource)
+- Interactive dashboard: structure, characters, relationships, graph visualization
+- Secure, scalable, and modular architecture (Docker, monorepo, microservices)
+- API-first: REST endpoints for upload, analysis, progress, and graph export
+- Comprehensive test coverage (unit, integration, E2E)
+- Data anonymization for demo/test flows
+
+---
+
+## Documentation
+
+- [System Overview](docs/system_overview.md) - Comprehensive overview of the system architecture, data flow, and components
+- [Architecture Documentation](docs/architecture.md) - Detailed architecture diagrams and component interactions
+- [Developer Guide](docs/developer_guide.md) - Setup instructions, codebase organization, and contribution guidelines
+- [API Documentation](docs/api_documentation.md) - Complete API reference with endpoints and examples
 
 ---
 
@@ -22,15 +35,60 @@
 
 ```mermaid
 graph TD
-    U[Filmmaker uploads PDF] --> P[PDF Parsing]
-    P --> S[Scene Splitting]
-    S --> C[Chunking]
-    C --> L[LLM Analysis (Prompt → JSON)]
-    L --> E[Embeddings]
-    E --> V[Vector DB (Weaviate)]
-    V --> Q[QA/Retrieval]
-    Q --> U2[Filmmaker queries script knowledge]
+    subgraph "Input"
+        U[User uploads script PDF] --> P[PDF Parsing]
+    end
+    subgraph "Processing"
+        P --> S[Scene Splitting]
+        S --> C[Chunking]
+        C --> L[LLM Analysis]
+        L --> E[Embeddings Generation]
+    end
+    subgraph "Storage"
+        E --> V[Vector DB Storage]
+        L --> D[Document DB Storage]
+    end
+    subgraph "Retrieval"
+        V --> Q[Semantic Search]
+        D --> R[Structured Queries]
+        Q --> A[Analysis Results]
+        R --> A
+    end
+    subgraph "Visualization"
+        A --> VIZ[Interactive Visualizations]
+        VIZ --> REL[Relationship Graphs]
+        VIZ --> SCN[Scene Timeline (planned)]
+        VIZ --> CHR[Character Networks]
+        VIZ --> EXP[Export/Download (planned)]
+        VIZ --> RISK[Risk-Radar (planned)]
+    end
+    A --> U2[User queries script knowledge]
 ```
+
+---
+
+## Roadmap & Progress
+
+### Recently Completed
+- Pełna anonimizacja danych testowych i przykładowych (tytuły, postacie)
+- Progres tracker: śledzenie statusu analizy (upload, chunking, analyzing, graph)
+- API: upload, analiza, pobieranie wyników, pobieranie grafu relacji
+- Dashboard: wizualizacja struktury, postaci, relacji, grafów
+- Testy jednostkowe i integracyjne dla parsera i API
+
+### In Progress
+- Eksport wyników analizy do różnych formatów (CSV, JSON, PDF)
+- Timeline scen i wizualizacja przepływu narracji
+- Risk-radar: analiza ryzyk i punktów zwrotnych w scenariuszu
+- Ulepszona obsługa relacji postaci (typy, siła, sentyment)
+- Integracje z zewnętrznymi narzędziami produkcyjnymi
+
+### Planned
+- Zaawansowane filtry i wyszukiwanie po metadanych
+- Automatyczne generowanie raportów produkcyjnych
+- Wsparcie dla kolejnych formatów (Fountain, Final Draft, itp.)
+- Rozbudowana dokumentacja API (OpenAPI/Swagger)
+- Pełna internacjonalizacja (i18n)
 
 ---
 
@@ -70,6 +128,8 @@ npm run dev
 npm start
 ```
 
+For detailed setup instructions, see the [Developer Guide](docs/developer_guide.md).
+
 ---
 
 ## Testing
@@ -82,8 +142,40 @@ npm start
 ---
 
 ## Development & Contribution
-- See `CONTRIBUTING.md` for guidelines
+- See the [Developer Guide](docs/developer_guide.md) for detailed contribution guidelines
 - All code and documentation should reflect the film industry focus
+
+---
+
+## API Reference
+
+The Site2Data API provides endpoints for script upload, analysis, and visualization. For complete documentation, see the [API Documentation](docs/api_documentation.md).
+
+Example API usage:
+
+```javascript
+// Upload a script
+const response = await fetch('/api/scripts/upload', {
+  method: 'POST',
+  headers: {
+    'Authorization': 'Bearer YOUR_TOKEN'
+  },
+  body: formData
+});
+
+// Get analysis results
+const analysis = await fetch(`/api/scripts/${scriptId}/analysis`, {
+  headers: {
+    'Authorization': 'Bearer YOUR_TOKEN'
+  }
+});
+```
+
+---
+
+## System Architecture
+
+Site2Data uses a microservices architecture with separate components for frontend, API, and workers. For a detailed overview of the system architecture, see the [System Overview](docs/system_overview.md) and [Architecture Documentation](docs/architecture.md).
 
 ---
 
@@ -96,3 +188,10 @@ npm start
 
 ## License
 MIT License. See [LICENSE](LICENSE).
+
+---
+
+## Data Anonymization Notice
+
+All film titles and character names used in examples, tests, and data files are fictional and have been anonymized. Any resemblance to real films or persons is coincidental. This ensures compliance with copyright and privacy requirements for demo and test data.
+

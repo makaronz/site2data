@@ -1,0 +1,114 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+1 . Core Coding Philosophy
+* Functional & Declarative: pure function; avoid classes/side‑effects.
+* Single‑Responsibility + DRY: one job per unit; reuse modules, helpers, hooks.
+* Readable First: descriptive names, short functions, consistent layout/format.
+* RORO: Receive‑Object / Return‑Object pattern for all public APIs.
+* No Magic Literals: replace with named constants.
+2 . TypeScript / JavaScript Standards
+Area	Guideline
+Syntax	Use function; drop semicolons.
+Types	Interfaces > type aliases; avoid enum, prefer maps.
+Conditionals	One‑liner if (cond) doX() where possible; eliminate redundant else.
+Structure	kebab-case directories; file order → export → sub‑components → helpers → static data → types.
+3 . Error Handling & Validation
+* Guard clauses first; log context; happy path last.
+* Custom error classes/factories; expected errors returned (not thrown) in Server Actions.
+* Input validated by Zod; services throw user‑readable errors for TanStack Query.
+4 . React / Next.js 14
+* Functional tsx components; default Server Components.
+* "use client" only for small Web‑API widgets.
+* Server Actions via next-safe-action; return ActionResponse.
+* Forms: react-hook-form + useActionState.
+* <Suspense> + dynamic import for non‑critical UI; error boundaries (app/error.tsx, app/global-error.tsx).
+* Track Web Vitals (LCP, CLS, FID); serve images as WebP, lazy loaded.
+5 . UI & Styling
+* Shadcn UI + Radix UI + Tailwind Aria.
+* Mobile‑first utilities, no inline styles.
+* UI primitives documented in Storybook.
+6 . Services & Data
+* Business logic in services/; throw human‑readable errors.
+* Modular, iterative design; reusable hooks/helpers.
+7 . Documentation & Comments
+* Explain why, not what; remove outdated remarks.
+* TSDoc on all exports; Architecture Decision Records (/docs/adr/) for major choices.
+8 . Clean‑Code Practices
+* Continuous refactor; encapsulate nested conditionals in named functions.
+* Replace hard‑coded values with constants; ensure version compatibility & security.
+9 . Testing & Quality Assurance
+* Unit tests (Vitest/Jest) for every public function.
+* Integration/E2E: Playwright for critical flows (auth, payments).
+* Snapshot tests only for stable UI primitives.
+* Mutation testing (Stryker) with ≥ 60 % surviving mutants before merge.
+* Lighthouse a11y ≥ 95; keyboard‑only E2E for interactive pages.
+10 . Security & Accessibility
+* Enforce OWASP Top 10 mitigations; secrets in vault (.env only locally).
+* CI fails on “high” severity npm audit/Snyk issues.
+* CSP, HSTS, COOP/COEP headers in next.config.js.
+* Radix components’ ARIA roles verified after composition.
+11 . Performance
+* JS bundle ≤ 250 kB gzip per route; LCP image ≤ 100 kB.
+* Edge Runtime for latency‑sensitive endpoints; static/immutable cache headers + CDN.
+* Web‑Vitals telemetry sent to analytics; p95 latency monitored.
+12 . Observability & Logging
+* Structured logs (pino) with trace‑id propagation.
+* Sentry error aggregation with source maps.
+* OpenTelemetry traces → Grafana Tempo dashboards.
+13 . CI/CD & Version Control
+* Conventional Commits syntax: <type>[optional scope]: <description>
+* 
+* [optional body]
+* 
+* [optional footer(s)]
+*  Types: feat, fix, docs, style, refactor, test, chore, ci, perf, build; append ! or BREAKING CHANGE: for majors.
+* Trunk‑based flow; Husky pre‑commit (lint, type‑check, test); semantic‑release for versioning.
+* Blue‑green or canary deploy via Vercel.
+14 . Infrastructure as Code
+* Terraform modules per cloud service; remote state lock (S3 + DynamoDB).
+* PR‑level terraform plan reviewed before apply.
+15 . Code Review & Workflow Directives
+* ≤ 400 LOC per PR; “ship small, ship often”.
+* Review checklist: naming, SRP, tests, a11y, security, perf budgets, docs.
+* Provide full diff in one block; preserve unrelated code; no whitespace‑only patches.
+* Persistent Task Log Workflow
+    1. On every prompt:
+        * Check for change_log2025.md.
+        * If present, read and start on the first unchecked task.
+        * If absent, create it using the skeleton below.
+    2. Task List Maintenance:
+        * Update - [ ] ➔ - [x] (✅ Done) when completing tasks.
+        * Append new tasks chronologically; never overwrite.
+    3. PR Gate: PR merges only when its task is ticked and follow‑ups appended.
+* change_log2025.md Skeleton # Change Log 2025
+* 
+* ## 📌 Task List
+* - [ ] <short task title>
+* 
+* ---
+* 
+* ## 🔍 Analysis
+* <background / root cause>
+* 
+* ## 🛠️ Functions / Components
+* <API signatures, data contracts, file paths>
+* 
+* ## 🚀 Action Plan
+* <step‑by‑step roadmap>
+* 
+* ## ⚠️ Problems & Risks
+* <edge cases, blockers>
+* 
+* ## 💡 Recommendations
+* <refactors, tech‑debt cleanup>
+* 
+16 . Developer Experience & Documentation
+* OpenAPI spec generated from Zod (zod-to-openapi) and published.
+* ADRs, Storybook, and comprehensive README kept current.
+17 . Internationalization & Feature Flags
+* next-intl with default locale en-US; ICU MessageFormat; compile‑time checks.
+* Feature flags via ConfigCat/LaunchDarkly (kebab-case names); kill‑switch until 100 % rollout.
+

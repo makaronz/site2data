@@ -7,8 +7,8 @@
   let sigmaInstance;
 
   // Mock data import
-  import nodes from './druga-furioza-graph-nodes.json';
-  import edges from './druga-furioza-graph-edges.json';
+  import nodes from './projekt-x-graph-nodes.json';
+  import edges from './projekt-x-graph-edges.json';
 
   function getNodeColor(node) {
     if (node.difficult) return '#ff3b3b';
