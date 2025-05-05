@@ -14,10 +14,11 @@ interface DownloadResultsProps {
   disabled?: boolean;
 }
 
-const files = [
-  { label: 'analysis.json', endpoint: 'analysis.json' },
-  { label: 'chunks.ndjson', endpoint: 'chunks.ndjson' },
-  { label: 'results.zip', endpoint: 'results.zip' },
+const exportOptions = [
+  { label: 'Pobierz PDF', format: 'pdf', filename: 'analysis.pdf' },
+  { label: 'Pobierz JSON', format: 'json', filename: 'analysis.json' },
+  { label: 'Pobierz CSV (ZIP)', format: 'csv', filename: 'analysis_csv.zip' },
+  { label: 'Pobierz pełny ZIP', format: 'zip', filename: 'analysis_full.zip' },
 ];
 
 export const DownloadResults: React.FC<DownloadResultsProps> = ({ jobId, disabled }) => {
@@ -28,21 +29,21 @@ export const DownloadResults: React.FC<DownloadResultsProps> = ({ jobId, disable
     severity: 'success',
   });
 
-  const handleDownload = async (endpoint: string, label: string) => {
-    setLoading(label);
+  const handleDownload = async (format: string, filename: string) => {
+    setLoading(format);
     try {
-      const res = await fetch(`/api/job/${jobId}/${endpoint}`);
+      const res = await fetch(`/api/script/${jobId}/export?format=${format}`);
       if (!res.ok) throw new Error('Błąd pobierania pliku.');
       const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = label;
+      a.download = filename;
       document.body.appendChild(a);
       a.click();
       a.remove();
       window.URL.revokeObjectURL(url);
-      setSnackbar({ open: true, message: `Pobrano ${label}.`, severity: 'success' });
+      setSnackbar({ open: true, message: `Pobrano ${filename}.`, severity: 'success' });
     } catch (err: any) {
       setSnackbar({ open: true, message: err.message || 'Błąd pobierania.', severity: 'error' });
     } finally {
@@ -55,17 +56,17 @@ export const DownloadResults: React.FC<DownloadResultsProps> = ({ jobId, disable
   return (
     <Box sx={{ mt: 2 }}>
       <Stack direction="row" spacing={2}>
-        {files.map(file => (
+        {exportOptions.map(opt => (
           <Button
-            key={file.label}
+            key={opt.format}
             variant="contained"
             color="primary"
-            startIcon={loading === file.label ? <CircularProgress size={20} /> : <DownloadIcon />}
-            onClick={() => handleDownload(file.endpoint, file.label)}
+            startIcon={loading === opt.format ? <CircularProgress size={20} /> : <DownloadIcon />}
+            onClick={() => handleDownload(opt.format, opt.filename)}
             disabled={!!loading || disabled}
-            aria-label={`Pobierz ${file.label}`}
+            aria-label={opt.label}
           >
-            {file.label}
+            {opt.label}
           </Button>
         ))}
       </Stack>

@@ -118,4 +118,68 @@ describe('API Test Endpoints', () => {
       expect(mockTimeoutResult).toHaveProperty('timeout', true);
     });
   });
+});
+
+describe('Script Analysis Export Endpoints', () => {
+  let app: express.Application;
+  let server: Server;
+
+  beforeAll(() => {
+    app = express();
+    // Importujemy router scriptAnalysis
+    const scriptAnalysisRouter = require('../../src/routes/scriptAnalysis').default;
+    app.use(express.json());
+    app.use('/api', scriptAnalysisRouter);
+    server = app.listen(0);
+  });
+
+  afterAll((done) => {
+    if (server) server.close(done);
+    else done();
+  });
+
+  const testId = 'test'; // zakładamy uploads/test_analysis.json
+
+  it('should export analysis as PDF', async () => {
+    const res = await request(app)
+      .get(`/api/script/${testId}/export?format=pdf`)
+      .expect(200);
+    expect(res.headers['content-type']).toMatch(/application\/pdf/);
+    expect(res.header['content-disposition']).toMatch(/attachment/);
+    expect(res.body).toBeDefined();
+  });
+
+  it('should export analysis as JSON', async () => {
+    const res = await request(app)
+      .get(`/api/script/${testId}/export?format=json`)
+      .expect(200);
+    expect(res.headers['content-type']).toMatch(/application\/json/);
+    expect(res.header['content-disposition']).toMatch(/attachment/);
+    expect(res.body).toBeDefined();
+  });
+
+  it('should export analysis as CSV ZIP', async () => {
+    const res = await request(app)
+      .get(`/api/script/${testId}/export?format=csv`)
+      .expect(200);
+    expect(res.headers['content-type']).toMatch(/application\/zip/);
+    expect(res.header['content-disposition']).toMatch(/attachment/);
+    expect(res.body).toBeDefined();
+  });
+
+  it('should export analysis as full ZIP', async () => {
+    const res = await request(app)
+      .get(`/api/script/${testId}/export?format=zip`)
+      .expect(200);
+    expect(res.headers['content-type']).toMatch(/application\/zip/);
+    expect(res.header['content-disposition']).toMatch(/attachment/);
+    expect(res.body).toBeDefined();
+  });
+
+  it('should return 404 for missing analysis', async () => {
+    const res = await request(app)
+      .get('/api/script/nonexistent/export?format=pdf')
+      .expect(404);
+    expect(res.body).toHaveProperty('success', false);
+  });
 }); 
