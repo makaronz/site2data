@@ -1,0 +1,23 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Add scrape configs for your services here when they expose metrics
+  # Example for api:
+  # - job_name: 'api'
+  #   static_configs:
+  #     - targets: ['api:3000'] # Assuming api exposes /metrics on port 3000
+
+  # Example for worker-js:
+  # - job_name: 'worker-js'
+  #   static_configs:
+  #     - targets: ['worker-js:9101'] # Assuming worker-js exposes /metrics on port 9101
+
+  # Example for worker-py:
+  # - job_name: 'worker-py'
+  #   static_configs:
+  #     - targets: ['worker-py:9102'] # Assuming worker-py exposes /metrics on port 9102 

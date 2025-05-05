@@ -1,7 +1,7 @@
 ---
 description: 
 globs: 
-alwaysApply: true
+alwaysApply: false
 ---
 1 . Core Coding Philosophy
 * Functional & Declarative: pure function; avoid classes/side‑effects.

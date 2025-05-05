@@ -24,19 +24,3 @@ Testing framework in place.
 Frontend and backend fully integrated.
 
 Ready for production deployment with minor final polishing.
-
-🌍 Assumptions:
-IDE: Visual Studio Code
-
-Languages: Python, JavaScript, Java, Rust
-
-Frameworks: (auto-detect and adjust accordingly)
-
-LLM operates inside the project's active filesystem.
-
-❗ Hard Constraints:
-NO skipping any file or flow.
-
-NO making assumptions without code-based evidence.
-
-Only fix and generate what's needed for application readiness.
