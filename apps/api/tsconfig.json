@@ -5,7 +5,9 @@
     "rootDir": "./src",
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["src/*"],
+      "../../packages/types/src": ["../../packages/types/src"],
+      "../../packages/types/src/*": ["../../packages/types/src/*"]
     },
     "esModuleInterop": true,
     "strict": true,
