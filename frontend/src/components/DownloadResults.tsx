@@ -12,16 +12,22 @@ import DownloadIcon from '@mui/icons-material/Download';
 interface DownloadResultsProps {
   jobId: string;
   disabled?: boolean;
+  fileName?: string;
 }
 
-const exportOptions = [
-  { label: 'Pobierz PDF', format: 'pdf', filename: 'analysis.pdf' },
-  { label: 'Pobierz JSON', format: 'json', filename: 'analysis.json' },
-  { label: 'Pobierz CSV (ZIP)', format: 'csv', filename: 'analysis_csv.zip' },
-  { label: 'Pobierz pełny ZIP', format: 'zip', filename: 'analysis_full.zip' },
-];
+const exportOptionsDefinition = (
+  fileNameToUse?: string
+): { label: string; format: string; filename: string }[] => {
+  const baseName = fileNameToUse
+    ? fileNameToUse.substring(0, fileNameToUse.lastIndexOf('.')) || fileNameToUse
+    : 'analysis';
+  return [
+    { label: 'Pobierz JSON', format: 'json', filename: `${baseName}_analysis.json` },
+  ];
+};
 
-export const DownloadResults: React.FC<DownloadResultsProps> = ({ jobId, disabled }) => {
+export const DownloadResults: React.FC<DownloadResultsProps> = ({ jobId, disabled, fileName }) => {
+  console.log('[DownloadResults] Props:', { jobId, fileName, disabled });
   const [loading, setLoading] = useState<string | null>(null);
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
     open: false,
@@ -29,7 +35,8 @@ export const DownloadResults: React.FC<DownloadResultsProps> = ({ jobId, disable
     severity: 'success',
   });
 
-  const handleDownload = async (format: string, filename: string) => {
+  const handleDownload = async (format: string, filenameToDownload: string) => {
+    console.log('[DownloadResults] handleDownload:', { format, filenameToDownload, jobId });
     setLoading(format);
     try {
       const res = await fetch(`/api/script/${jobId}/export?format=${format}`);
@@ -38,12 +45,12 @@ export const DownloadResults: React.FC<DownloadResultsProps> = ({ jobId, disable
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = filename;
+      a.download = filenameToDownload;
       document.body.appendChild(a);
       a.click();
       a.remove();
       window.URL.revokeObjectURL(url);
-      setSnackbar({ open: true, message: `Pobrano ${filename}.`, severity: 'success' });
+      setSnackbar({ open: true, message: `Pobrano ${filenameToDownload}.`, severity: 'success' });
     } catch (err: any) {
       setSnackbar({ open: true, message: err.message || 'Błąd pobierania.', severity: 'error' });
     } finally {
@@ -56,7 +63,7 @@ export const DownloadResults: React.FC<DownloadResultsProps> = ({ jobId, disable
   return (
     <Box sx={{ mt: 2 }}>
       <Stack direction="row" spacing={2}>
-        {exportOptions.map(opt => (
+        {exportOptionsDefinition(fileName).map(opt => (
           <Button
             key={opt.format}
             variant="contained"

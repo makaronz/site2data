@@ -12,6 +12,7 @@ interface FileUploaderProps {
   apiKey?: string;
   model?: string;
   requireApiKey?: boolean;
+  beforeUploadButtonContent?: React.ReactNode;
 }
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
@@ -26,6 +27,7 @@ const FileUploader: React.FC<FileUploaderProps> = ({
   apiKey,
   model = 'gpt-4-turbo-2024-04-09',
   requireApiKey = false,
+  beforeUploadButtonContent,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -114,22 +116,25 @@ const FileUploader: React.FC<FileUploaderProps> = ({
             aria-label={label}
             tabIndex={0}
           />
-          <Box>
-            <Button
-              variant="contained"
-              startIcon={<UploadFileIcon />}
-              onClick={handleUploadClick}
-              aria-label="Wybierz plik"
-              disabled={isUploading}
-            >
-              {selectedFile ? 'Zmień plik' : 'Wybierz plik'}
-            </Button>
-            {selectedFile && (
-              <Typography variant="body2" sx={{ ml: 2, display: 'inline' }}>
-                {selectedFile.name} ({(selectedFile.size / 1024).toFixed(1)} KB)
-              </Typography>
-            )}
-          </Box>
+          <Stack direction="row" spacing={2} alignItems="center">
+            {beforeUploadButtonContent}
+            <Box>
+              <Button
+                variant="contained"
+                startIcon={<UploadFileIcon />}
+                onClick={handleUploadClick}
+                aria-label="Wybierz plik"
+                disabled={isUploading}
+              >
+                {selectedFile ? 'Zmień plik' : 'Wybierz plik'}
+              </Button>
+              {selectedFile && (
+                <Typography variant="body2" sx={{ ml: 2, display: 'inline' }}>
+                  {selectedFile.name} ({(selectedFile.size / 1024).toFixed(1)} KB)
+                </Typography>
+              )}
+            </Box>
+          </Stack>
           <Button
             type="submit"
             variant="contained"

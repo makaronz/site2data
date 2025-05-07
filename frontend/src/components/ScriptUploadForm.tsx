@@ -13,7 +13,7 @@ import {
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 
 interface ScriptUploadFormProps {
-  onJobCreated?: (jobId: string) => void;
+  onJobCreated?: (jobId: string, fileName: string) => void;
 }
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
@@ -22,6 +22,7 @@ export const ScriptUploadForm: React.FC<ScriptUploadFormProps> = ({ onJobCreated
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
     open: false,
     message: '',
@@ -53,6 +54,22 @@ export const ScriptUploadForm: React.FC<ScriptUploadFormProps> = ({ onJobCreated
       return;
     }
     setIsUploading(true);
+    setUploadProgress(0);
+
+    let progressInterval: NodeJS.Timeout | null = null;
+    if (selectedFile) {
+      setUploadProgress(10);
+      progressInterval = setInterval(() => {
+        setUploadProgress(prevProgress => {
+          if (prevProgress >= 90) {
+            if (progressInterval) clearInterval(progressInterval);
+            return 90;
+          }
+          return prevProgress + 5;
+        });
+      }, 400);
+    }
+
     try {
       const formData = new FormData();
       formData.append('file', selectedFile);
@@ -68,17 +85,36 @@ export const ScriptUploadForm: React.FC<ScriptUploadFormProps> = ({ onJobCreated
       }
 
       const data = await response.json();
-      setSnackbar({ open: true, message: 'Plik przesłany! Analiza rozpoczęta.', severity: 'success' });
+      if (progressInterval) clearInterval(progressInterval);
+      setUploadProgress(100);
+
+      setSnackbar({ 
+        open: true, 
+        message: "Analiza zakończona. Przejdź do menu 'Analiza scenariusza'.", 
+        severity: 'success' 
+      });
+
+      const originalFileName = selectedFile.name;
       setSelectedFile(null);
-      if (onJobCreated && data.jobId) onJobCreated(data.jobId);
+      if (onJobCreated && data.jobId) onJobCreated(data.jobId, originalFileName);
     } catch (err: any) {
+      if (progressInterval) clearInterval(progressInterval);
+      setUploadProgress(0);
       setSnackbar({ open: true, message: err.message || 'Błąd sieci.', severity: 'error' });
-    } finally {
       setIsUploading(false);
     }
   };
 
-  const handleSnackbarClose = () => setSnackbar(s => ({ ...s, open: false }));
+  const handleSnackbarClose = (event?: React.SyntheticEvent | Event, reason?: string) => {
+    if (reason === 'clickaway') {
+      return;
+    }
+    setSnackbar(s => ({ ...s, open: false }));
+    if (snackbar.message === "Analiza zakończona. Przejdź do menu 'Analiza scenariusza'.") {
+      setIsUploading(false);
+      setUploadProgress(0);
+    }
+  };
 
   return (
     <Container maxWidth="sm" sx={{ mt: 6 }}>
@@ -120,9 +156,16 @@ export const ScriptUploadForm: React.FC<ScriptUploadFormProps> = ({ onJobCreated
               disabled={isUploading || !selectedFile}
               aria-label="Wyślij plik do analizy"
             >
-              {isUploading ? 'Wysyłanie...' : 'Analizuj'}
+              {isUploading ? 'Trwa wysyłanie i analiza scenariusza...' : 'Prześlij i analizuj scenariusz'}
             </Button>
-            {isUploading && <LinearProgress aria-label="Wysyłanie pliku" />}
+            {isUploading && (
+              <Box sx={{ width: '100%', textAlign: 'center', mt: 1 }}>
+                <LinearProgress variant="determinate" value={uploadProgress} aria-label="Postęp wysyłania i analizy" />
+                <Typography variant="body2" sx={{ mt: 1 }}>
+                  {uploadProgress < 100 ? 'Trwa wysyłanie i analiza scenariusza…' : 'Analiza zakończona!'}
+                </Typography>
+              </Box>
+            )}
             <Alert severity="info">
               Dozwolone pliki: <b>PDF</b> lub <b>TXT</b>, maksymalnie 10MB.
             </Alert>

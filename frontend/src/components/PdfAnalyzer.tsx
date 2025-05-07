@@ -106,6 +106,11 @@ interface AnalysisResult {
     reason: string;
     gear_needed: string[];
   }>;
+  permits_needed?: Array<{
+    scene_id: string;
+    permit_type: string;
+    reason: string;
+  }>;
 }
 
 const MAX_SIZE_MB = 10;
@@ -310,6 +315,77 @@ export const PdfAnalyzer: React.FC = () => {
             Język: {result.analysis.metadata.detected_language}
           </Typography>
           {/* Dodaj tu kolejne sekcje wyników */}
+
+          {/* Sekcja Lokalizacje */}
+          {result.locations && result.locations.length > 0 && (
+            <Box mt={2}>
+              <Typography variant="subtitle1" fontWeight="bold">Lokalizacje:</Typography>
+              <ul>
+                {result.locations.map((location, index) => (
+                  <li key={index}>
+                    <Typography variant="body2">{location || 'Brak informacji'}</Typography>
+                  </li>
+                ))}
+              </ul>
+            </Box>
+          )}
+          {result.locations === null && (
+            <Typography variant="body2" color="text.secondary" mt={1}>Nie udało się przetworzyć informacji o lokalizacjach.</Typography>
+          )}
+
+          {/* Sekcja Role */}
+          {result.roles && result.roles.length > 0 && (
+            <Box mt={2}>
+              <Typography variant="subtitle1" fontWeight="bold">Role:</Typography>
+              <ul>
+                {result.roles.map((role, index) => (
+                  <li key={index}>
+                    <Typography variant="body2">{role.character || 'Nieznana postać'}: {role.role || 'Nieznana rola'}</Typography>
+                  </li>
+                ))}
+              </ul>
+            </Box>
+          )}
+          {result.roles === null && (
+            <Typography variant="body2" color="text.secondary" mt={1}>Nie udało się przetworzyć informacji o rolach.</Typography>
+          )}
+
+          {/* Sekcja Wymagane Pozwolenia */}
+          {result.permits_needed && result.permits_needed.length > 0 && (
+            <Box mt={2}>
+              <Typography variant="subtitle1" fontWeight="bold">Wymagane pozwolenia:</Typography>
+              <ul>
+                {result.permits_needed.map((permit, index) => (
+                  <li key={index}>
+                    <Typography variant="body2">
+                      Scena: {permit.scene_id || 'N/A'}, Typ: {permit.permit_type || 'N/A'}, Powód: {permit.reason || 'N/A'}
+                    </Typography>
+                  </li>
+                ))}
+              </ul>
+            </Box>
+          )}
+          {result.permits_needed === null && (
+            <Typography variant="body2" color="text.secondary" mt={1}>Nie udało się przetworzyć informacji o pozwoleniach.</Typography>
+          )}
+
+          {/* Sekcja Efekty Specjalne */}
+          {result.special_effects && result.special_effects.length > 0 && (
+            <Box mt={2}>
+              <Typography variant="subtitle1" fontWeight="bold">Efekty specjalne:</Typography>
+              <ul>
+                {result.special_effects.map((effect, index) => (
+                  <li key={index}>
+                    <Typography variant="body2">{effect || 'Brak informacji'}</Typography>
+                  </li>
+                ))}
+              </ul>
+            </Box>
+          )}
+          {result.special_effects === null && (
+            <Typography variant="body2" color="text.secondary" mt={1}>Nie udało się przetworzyć informacji o efektach specjalnych.</Typography>
+          )}
+
         </Paper>
       )}
 
