@@ -25,7 +25,8 @@
     "svelte-preprocess": "^6.0.3",
     "ts-node": "^10.9.2",
     "typescript": "^5.3.3",
-    "vite": "^6.3.3"
+    "vite": "^6.3.3",
+    "@types/bun": "latest"
   },
   "dependencies": {
     "@langchain/community": "^0.3.41",

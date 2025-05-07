@@ -22,7 +22,8 @@ export function splitTextIntoScenes(text: string, logger: Logger): SceneSplit[] 
   // Regex to find potential scene headers (INT./EXT. followed by location)
   // Assumes headers are typically uppercase and at the start of a line, possibly with leading whitespace.
   // It captures the header line and looks for the next header or end of file.
-  const sceneHeaderRegex = /^(?:\s*)((?:INT\.|EXT\.|INT\.\/EXT\.|EXT\.\/INT\.)[^\n]+)/gim;
+  // Improved regex to better handle variations and avoid empty captures from only whitespace lines.
+  const sceneHeaderRegex = /^(?:\s*)((?:INT\.|EXT\.|I\/E\.|INT\.\/EXT\.|EXT\.\/INT\.)(?:[\t ]*[A-Z0-9\-\'\.,\/ ()]+)+)/gim;
 
   let match;
   let lastIndex = 0;
@@ -33,12 +34,15 @@ export function splitTextIntoScenes(text: string, logger: Logger): SceneSplit[] 
 
   while ((match = sceneHeaderRegex.exec(cleanedText)) !== null) {
     const header = match[1].trim();
+    // Ensure the matched header is not just whitespace or a very short, unlikely header.
+    if (header.length < 5) continue; 
+
     const startIndex = match.index;
 
     if (firstHeaderFound) {
-      // Content is from the end of the previous header to the start of this one
+      // Content is from the end of the previous header match to the start of this one
       const previousSceneContent = cleanedText.substring(lastIndex, startIndex).trim();
-      if (scenes.length > 0) {
+      if (scenes.length > 0 && previousSceneContent.length > 0) {
         scenes[scenes.length - 1].content = previousSceneContent;
       }
     }
@@ -57,10 +61,16 @@ export function splitTextIntoScenes(text: string, logger: Logger): SceneSplit[] 
 
   // Add content for the last scene (from the last header to the end of the text)
   if (scenes.length > 0) {
-    scenes[scenes.length - 1].content = cleanedText.substring(lastIndex).trim();
+    const lastSceneContent = cleanedText.substring(lastIndex).trim();
+    if (lastSceneContent.length > 0) {
+        scenes[scenes.length - 1].content = lastSceneContent;
+    } else if (scenes[scenes.length-1].content === '') {
+        // If the last scene has no content and its content was not set by a previous iteration (empty script after last header)
+        logger.warn({ sceneNumber: scenes[scenes.length-1].sceneNumber, header: scenes[scenes.length-1].header}, "Last scene found with no subsequent content.");
+    }
   }
 
-  if (scenes.length === 0 && text.length > 0) {
+  if (scenes.length === 0 && text.trim().length > 0) {
       logger.warn('No scene headers found using regex. Treating the entire text as a single scene.');
       scenes.push({
           sceneNumber: 1,
@@ -69,8 +79,14 @@ export function splitTextIntoScenes(text: string, logger: Logger): SceneSplit[] 
       });
   }
 
-  logger.info(`Split text into ${scenes.length} potential scenes.`);
-  return scenes;
+  // Filter out scenes that might have been created but ended up with no content
+  const finalScenes = scenes.filter(scene => scene.content.trim().length > 0 || scene.header === 'SCENE 1 (HEADER NOT FOUND)');
+  if (finalScenes.length !== scenes.length) {
+    logger.info(`Filtered out ${scenes.length - finalScenes.length} scenes with no content.`);
+  }
+
+  logger.info(`Split text into ${finalScenes.length} potential scenes.`);
+  return finalScenes;
 }
 
 /**
@@ -95,8 +111,9 @@ export async function parsePdfAndSplitScenes(pdfBuffer: Buffer, logger: Logger):
     }
 
     return splitTextIntoScenes(data.text, logger);
-  } catch (error) {
-    logger.error({ error }, 'Failed to parse PDF');
-    throw new Error('PDF parsing failed'); // Re-throw a simpler error
+  } catch (error: any) {
+    logger.error({ error: error.message, stack: error.stack }, 'Failed to parse PDF');
+    // It's often better to throw the original error or a custom error with more context
+    throw new Error(`PDF parsing failed: ${error.message}`); 
   }
 } 

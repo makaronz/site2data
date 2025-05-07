@@ -20,13 +20,15 @@ export const appRouter = router({
   }),
 
   requestPresignedUrl: publicProcedure
-    .input(z.object({
-      filename: z.string().refine(name => name.toLowerCase().endsWith('.pdf'), {
-        message: 'Dozwolony jest tylko format PDF.',
-      }),
-      // Add size validation if possible/needed, though typically done client-side first
-    }))
-    .mutation(async ({ input }) => {
+    .input(
+      z.object({
+        filename: z.string().refine(name => name.toLowerCase().endsWith('.pdf'), {
+          message: 'Dozwolony jest tylko format PDF.',
+        }),
+        // Add size validation if possible/needed, though typically done client-side first
+      })
+    )
+    .mutation(async ({ input }: { input: z.infer<typeof z.object({ filename: z.string() })> }) => {
       const objectKey = `uploads/${randomUUID()}-${input.filename}`;
       const expirySeconds = 60 * 5; // 5 minutes validity
 
@@ -50,7 +52,7 @@ export const appRouter = router({
 
   notifyUploadComplete: publicProcedure
     .input(z.object({ objectKey: z.string() }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input }: { input: z.infer<typeof z.object({ objectKey: z.string() })> }) => {
       const jobId = `job-${randomUUID()}`;
       const now = new Date();
 
@@ -68,27 +70,47 @@ export const appRouter = router({
         const collection = jobsCollection();
         const insertResult = await collection.insertOne(newJob);
         if (!insertResult.acknowledged) {
-          throw new Error('Failed to insert job into database.');
+          // This case should ideally not happen if MongoDB is running correctly
+          // but good to have a specific error for it.
+          console.error(`Failed to insert job ${jobId} into database, insert not acknowledged.`);
+          throw new Error('Failed to insert job into database, operation not acknowledged.');
         }
         console.log(`Created job ${jobId} in MongoDB.`);
 
-        // 2. Publish message to Redis Stream to trigger chunking
-        // Message format: key-value pairs
-        const streamMessage = [
-          'jobId', jobId,
-          'objectKey', input.objectKey,
-        ];
-        await redisClient.xadd(STREAM_PDF_CHUNKS, '*', ...streamMessage);
-        console.log(`Published job ${jobId} to stream ${STREAM_PDF_CHUNKS}.`);
+        try {
+          // 2. Publish message to Redis Stream to trigger chunking
+          const streamMessage = [
+            'jobId', jobId,
+            'objectKey', input.objectKey,
+          ];
+          await redisClient.xadd(STREAM_PDF_CHUNKS, '*', ...streamMessage);
+          console.log(`Published job ${jobId} to stream ${STREAM_PDF_CHUNKS}.`);
+        } catch (redisError) {
+          // If Redis publish fails after successful DB insert, attempt to clean up the job document
+          console.error(`Failed to publish job ${jobId} to Redis stream after DB insert. Attempting cleanup.`, redisError);
+          try {
+            await collection.deleteOne({ jobId });
+            console.log(`Successfully deleted job ${jobId} from MongoDB after Redis publish failure.`);
+          } catch (cleanupError) {
+            console.error(`CRITICAL: Failed to delete job ${jobId} from MongoDB after Redis publish failure. Manual cleanup required.`, cleanupError);
+            // Log critical error, as we now have an orphaned job that won't be processed
+          }
+          // Re-throw the original Redis error or a new error indicating publish failure
+          throw new TRPCError({
+            code: 'INTERNAL_SERVER_ERROR',
+            message: 'Nie udało się opublikować zadania do przetworzenia po zapisie do bazy danych.',
+            cause: redisError,
+          });
+        }
 
         return { success: true, jobId };
 
-      } catch (error) {
+      } catch (error: any) {
+        // Catch errors from DB insert, Redis publish (if not caught by inner try-catch), or other unexpected errors
         console.error(`Failed to process upload notification for ${input.objectKey}:`, error);
-        // TODO: Implement cleanup logic? (e.g., remove job document if stream publish failed?)
         throw new TRPCError({
           code: 'INTERNAL_SERVER_ERROR',
-          message: 'Nie udało się rozpocząć przetwarzania pliku.',
+          message: error.message || 'Nie udało się rozpocząć przetwarzania pliku.',
           cause: error,
         });
       }

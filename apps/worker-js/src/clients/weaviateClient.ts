@@ -46,60 +46,82 @@ const sceneClassSchema: WeaviateClass = {
 };
 
 let weaviateClientInstance: WeaviateClient;
+let connectionPromise: Promise<WeaviateClient> | null = null;
 
 // Function to initialize Weaviate (accepts logger)
-export async function initializeWeaviate(logger: Logger): Promise<WeaviateClient> {
-  if (weaviateClientInstance) {
-    logger.debug('Weaviate client already initialized.');
-    return weaviateClientInstance;
+export function initializeWeaviate(logger: Logger): Promise<WeaviateClient> {
+  if (connectionPromise) {
+    logger.debug('Weaviate client initialization already in progress or completed.');
+    return connectionPromise;
   }
 
-  logger.info(`Connecting to Weaviate at ${WEAVIATE_URL}...`);
-  const clientConfig: any = { scheme: 'http', host: WEAVIATE_URL.replace(/^https? P:\/\//, '') };
-  if (WEAVIATE_URL.startsWith('https')) {
-      clientConfig.scheme = 'https';
-  }
-  if (WEAVIATE_API_KEY) {
-    clientConfig.apiKey = new weaviate.ApiKey(WEAVIATE_API_KEY);
-  }
-
-  const client = weaviate.client(clientConfig);
-
-  try {
-    // Check connection and schema
-    const meta = await client.misc.metaGetter().do();
-    logger.info(`Connected to Weaviate v${meta.version} at ${meta.hostname}`);
-
-    // Ensure schema exists
-    const schemas = await client.schema.getter().do();
-    const sceneClassExists = schemas.classes?.some(c => c.class === WEAVIATE_CLASS_NAME);
-
-    if (!sceneClassExists) {
-      logger.info(`Weaviate class '${WEAVIATE_CLASS_NAME}' does not exist. Creating...`);
-      await client.schema.classCreator().withClass(sceneClassSchema).do();
-      logger.info(`Weaviate class '${WEAVIATE_CLASS_NAME}' created successfully.`);
-    } else {
-      logger.info(`Weaviate class '${WEAVIATE_CLASS_NAME}' already exists.`);
-      // TODO: Optional: Compare existing schema with desired schema and update if necessary
+  connectionPromise = new Promise(async (resolve, reject) => {
+    logger.info(`Connecting to Weaviate at ${WEAVIATE_URL}...`);
+    
+    let scheme = 'http';
+    let host = WEAVIATE_URL.replace(/^https?:\/\//, '');
+    if (WEAVIATE_URL.startsWith('https')) {
+        scheme = 'https';
     }
 
-    weaviateClientInstance = client;
-    logger.info('Weaviate client initialized and schema ensured.');
-    return weaviateClientInstance;
+    const clientConfig: any = { scheme, host };
+    if (WEAVIATE_API_KEY) {
+      // Ensure weaviate.ApiKey is correctly referenced if it's a constructor
+      clientConfig.authClientSecret = new weaviate.ApiKey(WEAVIATE_API_KEY);
+    }
 
-  } catch (error) {
-    logger.error({ error }, 'Failed to connect to or initialize Weaviate');
-    throw error; // Re-throw for handling during startup
-  }
+    const client = weaviate.client(clientConfig);
+
+    try {
+      // Check connection and schema
+      const meta = await client.misc.metaGetter().do();
+      logger.info(`Connected to Weaviate v${meta.version} at ${meta.hostname}`);
+
+      // Ensure schema exists
+      const schemas = await client.schema.getter().do();
+      const sceneClassExists = schemas.classes?.some(c => c.class === WEAVIATE_CLASS_NAME);
+
+      if (!sceneClassExists) {
+        logger.info(`Weaviate class '${WEAVIATE_CLASS_NAME}' does not exist. Creating...`);
+        await client.schema.classCreator().withClass(sceneClassSchema).do();
+        logger.info(`Weaviate class '${WEAVIATE_CLASS_NAME}' created successfully.`);
+      } else {
+        logger.info(`Weaviate class '${WEAVIATE_CLASS_NAME}' already exists.`);
+        // TODO: Optional: Compare existing schema with desired schema and update if necessary
+      }
+
+      weaviateClientInstance = client;
+      logger.info('Weaviate client initialized and schema ensured.');
+      resolve(client);
+
+    } catch (error) {
+      logger.error({ error }, 'Failed to connect to or initialize Weaviate');
+      connectionPromise = null; // Reset promise on failure to allow retry
+      reject(error); // Re-throw for handling during startup
+    }
+  });
+  return connectionPromise;
 }
 
 // Export the client instance directly for use after initialization
 export const getWeaviateClient = (): WeaviateClient => {
   if (!weaviateClientInstance) {
-    throw new Error('Weaviate client has not been initialized.');
+    throw new Error('Weaviate client has not been initialized. Call initializeWeaviate first.');
   }
   return weaviateClientInstance;
 };
+
+// Function to close connection (for graceful shutdown)
+export async function closeWeaviateConnection(logger: Logger) {
+  // Weaviate client does not have an explicit close method in weaviate-ts-client v1/v2
+  // Connections are typically managed by the HTTP agent.
+  // For now, just log and nullify the instance.
+  if (weaviateClientInstance) {
+    logger.info('Weaviate client instance is being cleared. No explicit close method available.');
+    // weaviateClientInstance = null; // Or not, to allow re-use if initializeWeaviate is called again
+    connectionPromise = null; // Allow re-initialization
+  }
+}
 
 // Export class name constant
 export { WEAVIATE_CLASS_NAME }; 

@@ -6,9 +6,14 @@ import { Logger } from 'pino';
 dotenv.config();
 
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017';
-const DB_NAME = 'site2data';
-const JOBS_COLLECTION = 'jobs';
-const SCENES_COLLECTION = 'scenes';
+// const DB_NAME = 'site2data'; // Hardcoded in audit, but recommendation was to use env var
+// const JOBS_COLLECTION = 'jobs'; // Hardcoded in audit
+// const SCENES_COLLECTION = 'scenes'; // Hardcoded in audit
+
+// Using environment variables as per audit recommendations for flexibility
+const DB_NAME = process.env.MONGO_DB_NAME || "site2data";
+const JOBS_COLLECTION_NAME = process.env.MONGO_JOBS_COLLECTION || "jobs";
+const SCENES_COLLECTION_NAME = process.env.MONGO_SCENES_COLLECTION || "scenes";
 
 let dbInstance: Db;
 let clientInstance: MongoClient;
@@ -31,9 +36,9 @@ export async function initializeMongo(logger: Logger): Promise<MongoClient> {
 
     // Ensure indexes
     logger.info('Ensuring MongoDB indexes...');
-    await dbInstance.collection(JOBS_COLLECTION).createIndex({ jobId: 1 }, { unique: true });
-    await dbInstance.collection(SCENES_COLLECTION).createIndex({ sceneId: 1 }, { unique: true });
-    await dbInstance.collection(SCENES_COLLECTION).createIndex({ jobId: 1 });
+    await dbInstance.collection(JOBS_COLLECTION_NAME).createIndex({ jobId: 1 }, { unique: true });
+    await dbInstance.collection(SCENES_COLLECTION_NAME).createIndex({ sceneId: 1 }, { unique: true });
+    await dbInstance.collection(SCENES_COLLECTION_NAME).createIndex({ jobId: 1 });
     logger.info('MongoDB indexes ensured.');
 
     return clientInstance;
@@ -47,12 +52,12 @@ export async function initializeMongo(logger: Logger): Promise<MongoClient> {
 // Export functions to get collection references
 export const getJobsCollection = (): Collection<Job> => {
   if (!dbInstance) throw new Error('MongoDB connection not established yet.');
-  return dbInstance.collection<Job>(JOBS_COLLECTION);
+  return dbInstance.collection<Job>(JOBS_COLLECTION_NAME);
 };
 
 export const getScenesCollection = (): Collection<Scene> => { // Use specific type
   if (!dbInstance) throw new Error('MongoDB connection not established yet.');
-  return dbInstance.collection<Scene>(SCENES_COLLECTION);
+  return dbInstance.collection<Scene>(SCENES_COLLECTION_NAME);
 };
 
 // Function to close connection (for graceful shutdown)

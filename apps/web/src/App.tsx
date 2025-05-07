@@ -2,7 +2,6 @@ import React from 'react';
 import {
   CssBaseline,
   ThemeProvider,
-  createTheme,
   Container,
   AppBar,
   Toolbar,
@@ -10,20 +9,7 @@ import {
   Box,
 } from '@mui/material';
 import FileUpload from './components/FileUpload'; // Create this component
-
-// TODO: Move theme to a separate file (e.g., src/theme.ts)
-const theme = createTheme({
-  palette: {
-    // Define your theme colors here (e.g., based on film studio branding)
-    primary: {
-      main: '#1976d2', // Example primary color
-    },
-    secondary: {
-      main: '#dc004e', // Example secondary color
-    },
-    // Consider adding dark mode later
-  },
-});
+import theme from './theme'; // Import the theme
 
 function App() {
   const handleUploadComplete = (objectKey: string) => {
