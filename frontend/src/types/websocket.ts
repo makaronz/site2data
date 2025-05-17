@@ -1,26 +1,4 @@
-export interface WebSocketMessage {
-  type: 'ANALYZE_SCRIPT' | 'PROGRESS' | 'ANALYSIS_RESULT' | 'ERROR';
-  message?: string;
-  result?: AnalysisResult;
-  script?: File;
-}
+import { WebSocketMessage, AnalysisProgress, AnalysisResult } from 'shared-types';
 
-export interface AnalysisProgress {
-  stage: 'uploading' | 'processing' | 'analyzing' | 'complete';
-  progress: number;
-  message: string;
-}
-
-export interface AnalysisResult {
-  analysis: {
-    metadata: {
-      title: string;
-      authors: string[];
-      detected_language: string;
-      scene_count: number;
-      token_count: number;
-      analysis_timestamp: string;
-    };
-    overall_summary: string;
-  };
-} 
+// Re-export for backward compatibility
+export type { WebSocketMessage, AnalysisProgress, AnalysisResult };
