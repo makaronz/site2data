@@ -255,43 +255,44 @@ function App() {
   });
 
   useEffect(() => {
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//localhost:3001/ws/script-analysis`;
-    const websocket = new WebSocket(wsUrl);
-    websocket.onopen = () => setError(null);
-    websocket.onmessage = (event) => {
-      try {
-        const data: WebSocketMessage = JSON.parse(event.data);
-        if (data.type === 'ANALYSIS_RESULT') {
-          if (data.result) {
-            setAnalysisResult(data.result);
-            setAnalysisProgress(null);
-            if (selectedFile) cache.set(selectedFile.name, data.result);
-          } else {
-            setError('Błąd: Brak wyników analizy');
+    import('./config').then(({ default: config }) => {
+      const websocket = new WebSocket(config.wsUrl);
+      websocket.onopen = () => setError(null);
+      websocket.onmessage = (event) => {
+        try {
+          const data: WebSocketMessage = JSON.parse(event.data);
+          if (data.type === 'ANALYSIS_RESULT') {
+            if (data.result) {
+              setAnalysisResult(data.result);
+              setAnalysisProgress(null);
+              if (selectedFile) cache.set(selectedFile.name, data.result);
+            } else {
+              setError('Błąd: Brak wyników analizy');
+              setAnalysisResult(null);
+              setAnalysisProgress(null);
+            }
+          } else if (data.type === 'PROGRESS') {
+            if (data.message) {
+              setAnalysisProgress({ stage: 'processing', progress: 0, message: data.message });
+            }
+          } else if (data.type === 'ERROR') {
+            setError(data.message || 'Wystąpił nieznany błąd');
             setAnalysisResult(null);
             setAnalysisProgress(null);
           }
-        } else if (data.type === 'PROGRESS') {
-          if (data.message) {
-            setAnalysisProgress({ stage: 'processing', progress: 0, message: data.message });
-          }
-        } else if (data.type === 'ERROR') {
-          setError(data.message || 'Wystąpił nieznany błąd');
-          setAnalysisResult(null);
-          setAnalysisProgress(null);
+        } catch (error) {
+          setError('Błąd przetwarzania odpowiedzi z serwera');
         }
-      } catch (error) {
-        setError('Błąd przetwarzania odpowiedzi z serwera');
-      }
-    };
-    websocket.onerror = () => setError('Błąd połączenia WebSocket. Sprawdź, czy backend jest uruchomiony i obsługuje WebSocket.');
-    websocket.onclose = (event) => {
-      if (event.code !== 1000) setError(`Połączenie WebSocket zostało zamknięte: ${event.reason || 'Nieznany powód'}`);
-    };
-    setWs(websocket);
+      };
+      websocket.onerror = () => setError('Błąd połączenia WebSocket. Sprawdź, czy backend jest uruchomiony i obsługuje WebSocket.');
+      websocket.onclose = (event) => {
+        if (event.code !== 1000) setError(`Połączenie WebSocket zostało zamknięte: ${event.reason || 'Nieznany powód'}`);
+      };
+      setWs(websocket);
+    });
+    
     return () => {
-      if (websocket.readyState === WebSocket.OPEN) websocket.close(1000, 'Komponent został odmontowany');
+      if (ws && ws.readyState === WebSocket.OPEN) ws.close(1000, 'Komponent został odmontowany');
     };
   }, []);
 
