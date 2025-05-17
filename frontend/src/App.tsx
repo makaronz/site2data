@@ -419,7 +419,9 @@ function App() {
         return;
       }
 
-      const response = await fetch('/api/script/analyze', {
+      // Import config dynamically to get the API URL
+      const config = await import('./config').then(m => m.default);
+      const response = await fetch(`${config.apiUrl}/script/analyze`, {
         method: 'POST',
         body: formData,
         headers: {
