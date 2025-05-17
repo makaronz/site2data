@@ -441,50 +441,76 @@ router.post('/analyze', upload.single('script'), validateUpload, async (req, res
 // GET /api/script/:id/graph/nodes
 router.get('/api/script/:id/graph/nodes', async (req, res) => {
   const scriptId = req.params.id;
-  let analysisPath = path.join(process.cwd(), 'uploads', `${scriptId}_analysis.json`);
-  if (!fs.existsSync(analysisPath)) {
-    // Fallback do testowego pliku
-    const testPath = path.join(process.cwd(), 'uploads', `test_analysis.json`);
-    if (fs.existsSync(testPath)) {
-      analysisPath = testPath;
-    } else {
+  
+  try {
+    // Create cache directory if it doesn't exist
+    const cacheDir = await ensureDirectory(path.join(process.cwd(), 'cache'));
+    
+    // Use the centralized utility to get the analysis data
+    const analysis = await getAnalysisData(scriptId, 'uploads', 'test_analysis.json');
+    
+    const outputPath = path.join(cacheDir, `${scriptId}_nodes.csv`);
+    exportNodesCSV(analysis.analysis.characters, outputPath);
+    res.download(outputPath, 'nodes.csv');
+  } catch (error) {
+    logError(error, { endpoint: 'graph/nodes', scriptId });
+    
+    if (error instanceof FileProcessingError) {
       return res.status(404).send('Analysis not found');
     }
+    
+    res.status(500).send('Error generating graph data');
   }
-  const analysis = JSON.parse(fs.readFileSync(analysisPath, 'utf-8'));
-  const outputPath = path.join(process.cwd(), 'cache', `${scriptId}_nodes.csv`);
-  exportNodesCSV(analysis.analysis.characters, outputPath);
-  res.download(outputPath, 'nodes.csv');
 });
 
 // GET /api/script/:id/graph/edges
 router.get('/api/script/:id/graph/edges', async (req, res) => {
   const scriptId = req.params.id;
-  let analysisPath = path.join(process.cwd(), 'uploads', `${scriptId}_analysis.json`);
-  if (!fs.existsSync(analysisPath)) {
-    // Fallback do testowego pliku
-    const testPath = path.join(process.cwd(), 'uploads', `test_analysis.json`);
-    if (fs.existsSync(testPath)) {
-      analysisPath = testPath;
-    } else {
+  
+  try {
+    // Create cache directory if it doesn't exist
+    const cacheDir = await ensureDirectory(path.join(process.cwd(), 'cache'));
+    
+    // Use the centralized utility to get the analysis data
+    const analysis = await getAnalysisData(scriptId, 'uploads', 'test_analysis.json');
+    
+    const outputPath = path.join(cacheDir, `${scriptId}_edges.csv`);
+    exportEdgesCSV(analysis.analysis.relationships, outputPath);
+    res.download(outputPath, 'edges.csv');
+  } catch (error) {
+    logError(error, { endpoint: 'graph/edges', scriptId });
+    
+    if (error instanceof FileProcessingError) {
       return res.status(404).send('Analysis not found');
     }
+    
+    res.status(500).send('Error generating graph data');
   }
-  const analysis = JSON.parse(fs.readFileSync(analysisPath, 'utf-8'));
-  const outputPath = path.join(process.cwd(), 'cache', `${scriptId}_edges.csv`);
-  exportEdgesCSV(analysis.analysis.relationships, outputPath);
-  res.download(outputPath, 'edges.csv');
 });
 
 // GET /api/script/:id/graph/gexf
 router.get('/api/script/:id/graph/gexf', async (req, res) => {
   const scriptId = req.params.id;
-  const analysisPath = path.join(process.cwd(), 'uploads', `${scriptId}_analysis.json`);
-  if (!fs.existsSync(analysisPath)) return res.status(404).send('Analysis not found');
-  const analysis = JSON.parse(fs.readFileSync(analysisPath, 'utf-8'));
-  const outputPath = path.join(process.cwd(), 'cache', `${scriptId}_network.gexf`);
-  exportGEXF(analysis.analysis.characters, analysis.analysis.relationships, outputPath);
-  res.download(outputPath, 'network.gexf');
+  
+  try {
+    // Create cache directory if it doesn't exist
+    const cacheDir = await ensureDirectory(path.join(process.cwd(), 'cache'));
+    
+    // Use the centralized utility to get the analysis data
+    const analysis = await getAnalysisData(scriptId, 'uploads');
+    
+    const outputPath = path.join(cacheDir, `${scriptId}_network.gexf`);
+    exportGEXF(analysis.analysis.characters, analysis.analysis.relationships, outputPath);
+    res.download(outputPath, 'network.gexf');
+  } catch (error) {
+    logError(error, { endpoint: 'graph/gexf', scriptId });
+    
+    if (error instanceof FileProcessingError) {
+      return res.status(404).send('Analysis not found');
+    }
+    
+    res.status(500).send('Error generating graph data');
+  }
 });
 
 export default router; 
