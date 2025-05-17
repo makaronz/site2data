@@ -471,7 +471,7 @@ function App() {
     // Usunięto finally, bo setIsUploading jest zarządzane wewnątrz try/catch
   };
 
-  const handleAnalyze = () => {
+  const handleAnalyze = async () => {
     if (!ws || ws.readyState !== WebSocket.OPEN) {
       setSnackbar({open: true, message: 'Błąd: Brak połączenia WebSocket', severity: 'error'});
       return;
@@ -488,24 +488,29 @@ function App() {
     formData.append('model', 'gpt-4-turbo-2024-04-09');
     
     setIsUploading(true);
-    fetch('/api/script/analyze', { method: 'POST', body: formData })
-      .then(response => response.json())
-      .then(data => {
-        if (data.success) {
-          setSnackbar({open: true, message: 'Plik został pomyślnie przesłany!', severity: 'success'});
-          if (data.result) {
-            setAnalysisResult(data.result);
-            if (selectedFile) cache.set(selectedFile.name, data.result);
-          }
-        } else {
-          setSnackbar({open: true, message: data.message || 'Wystąpił błąd podczas przesyłania pliku', severity: 'error'});
-        }
-        setIsUploading(false);
-      })
-      .catch(error => {
-        setSnackbar({open: true, message: 'Wystąpił błąd podczas połączenia z serwerem', severity: 'error'});
-        setIsUploading(false);
+    
+    try {
+      const config = await import('./config').then(m => m.default);
+      const response = await fetch(`${config.apiUrl}/script/analyze`, { 
+        method: 'POST', 
+        body: formData 
       });
+      const data = await response.json();
+      
+      if (data.success) {
+        setSnackbar({open: true, message: 'Plik został pomyślnie przesłany!', severity: 'success'});
+        if (data.result) {
+          setAnalysisResult(data.result);
+          if (selectedFile) cache.set(selectedFile.name, data.result);
+        }
+      } else {
+        setSnackbar({open: true, message: data.message || 'Wystąpił błąd podczas przesyłania pliku', severity: 'error'});
+      }
+    } catch (error) {
+      setSnackbar({open: true, message: 'Wystąpił błąd podczas połączenia z serwerem', severity: 'error'});
+    } finally {
+      setIsUploading(false);
+    }
     
     // Informujemy użytkownika
     setAnalysisProgress({ stage: 'uploading', progress: 0, message: 'Rozpoczynam analizę...' });
