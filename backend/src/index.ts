@@ -67,13 +67,6 @@ app.get('/swagger-initializer.js', (req, res) => {
       const apiKeyAuth = document.querySelector('.auth-wrapper .auth-btn-wrapper');
       if (apiKeyAuth) {
         apiKeyAuth.querySelector('button.authorize').click();
-        setTimeout(function() {
-          const authInput = document.querySelector('.auth-container input');
-          if (authInput) {
-            authInput.value = 'Bearer ${process.env.OPENAI_API_KEY}';
-            document.querySelector('.auth-btn-wrapper .btn-done').click();
-          }
-        }, 500);
       }
     }, 1000);
   };`);
