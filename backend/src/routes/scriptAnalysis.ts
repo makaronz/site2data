@@ -16,9 +16,10 @@ import { validateUpload } from '../middleware/validation.js';
 import config from '../config/environments.js';
 import { z } from 'zod';
 import { exportNodesCSV, exportEdgesCSV, exportGEXF } from '../utils/graphExport.js';
-import pdf from 'pdf-parse';
 import logger from '../utils/logger.js';
 import { Script } from '../models/script.js';
+import { extractTextFromPdf, ensureDirectory, getAnalysisData } from '../utils/pdfUtils';
+import { FileProcessingError, logError } from '../utils/errors';
 
 // Tworzymy własny interfejs dla plików Multer zamiast używać namespace
 interface MulterFile {
