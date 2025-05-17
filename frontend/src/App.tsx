@@ -325,17 +325,20 @@ function App() {
   useEffect(() => {
     if (selectedSection === 'Graf' && scriptId) {
       setGraphLoading(true);
-      Promise.all([
-        fetch(`/api/script/${scriptId}/graph/nodes`).then(res => res.ok ? res.text() : null),
-        fetch(`/api/script/${scriptId}/graph/edges`).then(res => res.ok ? res.text() : null)
-      ])
-        .then(([nodesCsv, edgesCsv]) => {
-          const scenes = nodesCsv ? parseScenesCSV(nodesCsv) : [];
-          const relations = edgesCsv ? parseRelationsCSV(edgesCsv) : [];
-          setGraphData({ scenes, relations });
-        })
-        .catch(() => setGraphData(null))
-        .finally(() => setGraphLoading(false));
+      
+      import('./config').then(({ default: config }) => {
+        Promise.all([
+          fetch(`${config.apiUrl}/script/${scriptId}/graph/nodes`).then(res => res.ok ? res.text() : null),
+          fetch(`${config.apiUrl}/script/${scriptId}/graph/edges`).then(res => res.ok ? res.text() : null)
+        ])
+          .then(([nodesCsv, edgesCsv]) => {
+            const scenes = nodesCsv ? parseScenesCSV(nodesCsv) : [];
+            const relations = edgesCsv ? parseRelationsCSV(edgesCsv) : [];
+            setGraphData({ scenes, relations });
+          })
+          .catch(() => setGraphData(null))
+          .finally(() => setGraphLoading(false));
+      });
     }
   }, [selectedSection, scriptId]);
 
