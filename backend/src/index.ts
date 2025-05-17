@@ -17,7 +17,7 @@ import scriptAnalysisRouter, { handleWebSocket } from './routes/scriptAnalysis';
 import { WebSocketClient } from './types/websocket';
 import { apiLimiter, uploadLimiter, wsLimiter } from './middleware/rateLimiter';
 import { validateUpload } from './middleware/validation';
-import helmet from 'helmet';
+import { errorHandler } from './utils/errors';
 
 dotenv.config();
 
