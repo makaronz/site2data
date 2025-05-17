@@ -4,7 +4,7 @@
 cd backend
 if [ ! -d node_modules ]; then
   echo "Instaluję zależności backendu..."
-  npm install
+  npm install --legacy-peer-deps
 fi
 npm run dev &
 BACKEND_PID=$!
@@ -14,7 +14,7 @@ cd ..
 cd frontend
 if [ ! -d node_modules ]; then
   echo "Instaluję zależności frontendu..."
-  npm install
+  npm install --legacy-peer-deps
 fi
 npm run dev &
 FRONTEND_PID=$!

@@ -4,7 +4,7 @@
 
 ## Purpose
 
-This is the SvelteKit frontend for Site2Data – a platform for filmmakers to analyze film scripts and production documentation using AI/ML.
+This is the React frontend for Site2Data – a platform for filmmakers to analyze film scripts and production documentation using AI/ML.
 
 ---
 
@@ -17,7 +17,7 @@ This is the SvelteKit frontend for Site2Data – a platform for filmmakers to an
 ---
 
 ## Technologies
-- SvelteKit
+- React
 - TypeScript
 - TailwindCSS
 - Socket.IO
@@ -26,7 +26,7 @@ This is the SvelteKit frontend for Site2Data – a platform for filmmakers to an
 ---
 
 ## Directory Structure
-- `/src/routes` – SvelteKit routes and pages
+- `/src` – Contains the main source code, including components, pages, services, and utilities.
 - `/src/lib` – Shared components and utilities
 - `/src/stores` – State management
 - `/src/types` – TypeScript types

@@ -1,7 +1,7 @@
 import dotenv from 'dotenv';
 import pino from 'pino';
 import { randomUUID } from 'crypto';
-import { JobStatus, ProgressUpdate } from '../../packages/types/src';
+import { JobStatus, ProgressUpdate, SceneAnalysisResultSchema, SceneAnalysisResult } from '@packages/types/src';
 import {
   initializeMinio,
   initializeRedis,
@@ -24,25 +24,56 @@ import {
 import { parsePdfAndSplitScenes } from './utils/pdfParser';
 import { OpenAI } from 'openai';
 import Ajv from 'ajv';
-import { SceneAnalysisResultSchema, SceneAnalysisResult } from '../../packages/types/src';
-import { retryAsync } from '../../packages/utils/src';
+import { retryAsync } from '@packages/utils/src';
 import fs from 'fs';
 import path from 'path';
+import { ObjectsBatcher } from 'weaviate-ts-client';
 import { loadChunksWithCache } from "./ingest";
 import { processChunksWithCache } from "./processChunks";
 
+// Local type definition for the response from batcher.do()
+interface LocalBatchObjectResponse {
+  id_?: string;
+  class?: string;
+  // properties?: Record<string, unknown>; // Omitted if not directly used
+  // vector?: number[]; // Omitted if not directly used
+  // tenant?: string; // Omitted if not directly used
+  // vectorWeights?: Record<string, unknown>; // Omitted if not directly used
+  result?: {
+    status?: "SUCCESS" | "FAILED" | "PENDING";
+    errors?: {
+      error?: {
+        message?: string;
+      }[]; 
+    };
+  };
+}
+
+// Tymczasowo zastąpienie typów z packages/types/src
+// type JobStatus = any;
+// type ProgressUpdate = any;
+// type SceneAnalysisResult = any;
+// const SceneAnalysisResultSchema = {}; // Tymczasowe zastąpienie schematu
+
 dotenv.config();
 
-const logger = pino({
+const isProduction = process.env.NODE_ENV === 'production';
+
+const loggerOptions: pino.LoggerOptions = {
   level: process.env.LOG_LEVEL || 'info',
-  transport: {
-    target: 'pino-pretty', // Make logs pretty for development
+};
+
+if (!isProduction) {
+  loggerOptions.transport = {
+    target: 'pino-pretty',
     options: {
       colorize: true,
       ignore: 'pid,hostname',
     },
-  },
-});
+  };
+}
+
+const logger = pino(loggerOptions);
 
 const CONSUMER_ID = `worker-js-${randomUUID()}`;
 let isShuttingDown = false;
@@ -170,7 +201,7 @@ if (!OPENAI_API_KEY) {
   process.exit(1);
 }
 const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
-const SCENE_ANALYSIS_PROMPT_PATH = path.join(__dirname, '../../packages/prompts/templates/scene_analysis_v1.txt');
+const SCENE_ANALYSIS_PROMPT_PATH = path.join(__dirname, '../packages/prompts/templates/scene_analysis_v1.txt');
 let sceneAnalysisPromptTemplate = '';
 try {
     sceneAnalysisPromptTemplate = fs.readFileSync(SCENE_ANALYSIS_PROMPT_PATH, 'utf-8');
@@ -317,10 +348,10 @@ async function processSceneAnalysis(messageId: string, messageData: Record<strin
         const batchResult = await batcher.do();
         sceneLogger.info({ result: batchResult }, 'Added/updated scene object in Weaviate batch');
         // Check for batch errors
-        batchResult.forEach(item => {
-            if (item.result?.errors) {
-                sceneLogger.error({ errors: item.result.errors, object: item }, 'Error adding object to Weaviate batch');
-                // Decide how to handle batch errors - potentially retry individual objects?
+        batchResult.forEach((item: LocalBatchObjectResponse) => {
+            if (item.result?.status === 'FAILED' && item.result?.errors?.error && item.result.errors.error.length > 0) {
+                const errorMessages = item.result.errors.error.map(e => e.message).join('; ');
+                sceneLogger.error({ errors: errorMessages, objectId: item.id_ }, 'Error adding object to Weaviate batch');
             }
         });
 

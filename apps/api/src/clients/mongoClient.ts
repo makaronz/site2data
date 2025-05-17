@@ -1,6 +1,6 @@
 import { MongoClient, Db, Collection } from 'mongodb';
 import dotenv from 'dotenv';
-import { Job } from '../../packages/types/src'; // Correct relative path
+// import { Job } from '../../packages/types/src'; // Tymczasowo zakomentowane
 
 dotenv.config();
 
@@ -38,11 +38,11 @@ async function connectToMongo() {
 connectToMongo();
 
 // Export function to get collection references after connection is established
-export const jobsCollection = (): Collection<Job> => {
+export const jobsCollection = (): Collection<any> => {
   if (!dbInstance) {
     throw new Error('MongoDB is not connected yet.');
   }
-  return dbInstance.collection<Job>(JOBS_COLLECTION);
+  return dbInstance.collection<any>(JOBS_COLLECTION);
 };
 
 export const scenesCollection = (): Collection<any> => { // Use specific type later

@@ -20,7 +20,7 @@ RUN if [ -f requirements.txt ]; then pip install --no-cache-dir -r requirements.
 RUN apt-get update && apt-get install -y curl && \
     curl -fsSL https://deb.nodesource.com/setup_18.x | bash - && \
     apt-get install -y nodejs && \
-    if [ -f package.json ]; then npm install; fi
+    if [ -f package.json ]; then npm install --legacy-peer-deps; fi
 
 # Default command
 CMD if [ -f app.py ]; then \

@@ -1,6 +1,6 @@
 import { MongoClient, Db, Collection } from 'mongodb';
 import dotenv from 'dotenv';
-import { Job, Scene } from '../../packages/types/src'; // Adjust path
+// import { Job, Scene } from '../../packages/types/src'; // Tymczasowo zakomentowane
 import { Logger } from 'pino';
 
 dotenv.config();
@@ -20,12 +20,12 @@ let clientInstance: MongoClient;
 
 // Function to initialize MongoDB (accepts logger)
 export async function initializeMongo(logger: Logger): Promise<MongoClient> {
-  if (clientInstance && clientInstance.topology && clientInstance.topology.isConnected()) {
-    logger.debug('MongoDB client already connected.');
+  if (clientInstance && dbInstance) { // Check if already initialized
+    logger.debug('MongoDB client already initialized. Returning existing instance.');
     return clientInstance;
   }
 
-  logger.info('Connecting to MongoDB...');
+  logger.info(`Connecting to MongoDB at ${MONGO_URI} for database ${DB_NAME}...`);
   const client = new MongoClient(MONGO_URI);
 
   try {
@@ -50,14 +50,14 @@ export async function initializeMongo(logger: Logger): Promise<MongoClient> {
 }
 
 // Export functions to get collection references
-export const getJobsCollection = (): Collection<Job> => {
+export const getJobsCollection = (): Collection<any> => {
   if (!dbInstance) throw new Error('MongoDB connection not established yet.');
-  return dbInstance.collection<Job>(JOBS_COLLECTION_NAME);
+  return dbInstance.collection<any>(JOBS_COLLECTION_NAME);
 };
 
-export const getScenesCollection = (): Collection<Scene> => { // Use specific type
+export const getScenesCollection = (): Collection<any> => {
   if (!dbInstance) throw new Error('MongoDB connection not established yet.');
-  return dbInstance.collection<Scene>(SCENES_COLLECTION_NAME);
+  return dbInstance.collection<any>(SCENES_COLLECTION_NAME);
 };
 
 // Function to close connection (for graceful shutdown)

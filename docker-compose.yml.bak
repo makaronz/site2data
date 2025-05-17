@@ -1,0 +1,188 @@
+version: '3.8'
+
+services:
+  # Frontend (development server)
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile.dev
+    ports:
+      - "${FRONTEND_PORT:-5173}:5173" # Vite default port
+    volumes:
+      - ./apps/web:/app
+      - /app/node_modules # Mount node_modules from container
+    environment:
+      - VITE_API_URL=http://api:${API_PORT:-3000}/trpc
+      - VITE_SSE_URL=http://api:${API_PORT:-3000}/sse
+    depends_on:
+      - api
+    networks:
+      - site2data_net
+
+  # API Gateway (Node.js + Express + tRPC)
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile.dev
+    ports:
+      - "${API_PORT:-3000}:3000"
+    volumes:
+      - ./apps/api:/app
+      - /app/node_modules # Mount node_modules from container
+    environment:
+      - NODE_ENV=development
+      - PORT=${API_PORT:-3000}
+      - REDIS_URL=redis://redis:6379
+      - MONGO_URI=mongodb://mongo:27017/site2data
+      - MINIO_ENDPOINT=minio
+      - MINIO_PORT=9000
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY:-minioadmin}
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY:-minioadmin}
+      - MINIO_BUCKET=${MINIO_BUCKET:-scripts}
+      - WEAVIATE_URL=http://weaviate:8080
+      - OPENAI_API_KEY=${OPENAI_API_KEY} # Needs to be set in .env
+      - WEAVIATE_API_KEY=${WEAVIATE_API_KEY} # Needs to be set in .env for Weaviate Cloud Services (WCS) if used
+    depends_on:
+      - redis
+      - mongo
+      - minio
+      - weaviate
+    networks:
+      - site2data_net
+
+  # Worker JS (Node.js)
+  worker-js:
+    build:
+      context: ./apps/worker-js
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./apps/worker-js:/app
+      - /app/node_modules # Mount node_modules from container
+    environment:
+      - NODE_ENV=development
+      - REDIS_URL=redis://redis:6379
+      - MONGO_URI=mongodb://mongo:27017/site2data
+      - MINIO_ENDPOINT=minio
+      - MINIO_PORT=9000
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY:-minioadmin}
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY:-minioadmin}
+      - MINIO_BUCKET=${MINIO_BUCKET:-scripts}
+      - WEAVIATE_URL=http://weaviate:8080
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - WEAVIATE_API_KEY=${WEAVIATE_API_KEY}
+    depends_on:
+      - redis
+      - mongo
+      - minio
+      - weaviate
+    networks:
+      - site2data_net
+
+  # Worker PY (Python)
+  worker-py:
+    build:
+      context: ./apps/worker-py
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./apps/worker-py:/app
+    environment:
+      - PYTHONUNBUFFERED=1
+      - REDIS_URL=redis://redis:6379
+      - MONGO_URI=mongodb://mongo:27017/site2data
+      - MINIO_ENDPOINT=minio
+      - MINIO_PORT=9000
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY:-minioadmin}
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY:-minioadmin}
+      - MINIO_BUCKET=${MINIO_BUCKET:-scripts}
+    depends_on:
+      - redis
+      - mongo
+      - minio
+    networks:
+      - site2data_net
+
+  # --- Infrastructure ---
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - site2data_net
+
+  mongo:
+    image: mongo:6
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - site2data_net
+
+  weaviate:
+    image: semitechnologies/weaviate:1.23.7 # Use a version compatible with your needs
+    ports:
+      - "8080:8080" # REST API
+      - "50051:50051" # gRPC
+    volumes:
+      - weaviate_data:/var/lib/weaviate
+    environment:
+      QUERY_DEFAULTS_LIMIT: 25
+      AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED: 'true' # Adjust for production
+      PERSISTENCE_DATA_PATH: '/var/lib/weaviate'
+      DEFAULT_VECTORIZER_MODULE: 'none' # Or configure text2vec-openai, etc.
+      ENABLE_MODULES: '' # Add modules like text2vec-openai if needed
+      CLUSTER_HOSTNAME: 'node1'
+    networks:
+      - site2data_net
+
+  minio:
+    image: minio/minio:latest
+    ports:
+      - "9000:9000" # API
+      - "9001:9001" # Console
+    volumes:
+      - minio_data:/data
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-minioadmin}
+    command: server /data --console-address ":9001"
+    networks:
+      - site2data_net
+
+  # --- Monitoring (Optional but recommended) ---
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml # You'll need to create this file
+    command: '--config.file=/etc/prometheus/prometheus.yml'
+    networks:
+      - site2data_net
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3001:3000" # Renamed Grafana port to avoid conflict with API default
+    volumes:
+      - grafana_data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    depends_on:
+      - prometheus
+    networks:
+      - site2data_net
+
+volumes:
+  redis_data:
+  mongo_data:
+  weaviate_data:
+  minio_data:
+  grafana_data:
+
+networks:
+  site2data_net:
+    driver: bridge

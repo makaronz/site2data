@@ -2,14 +2,14 @@ import mongoose, { Schema, Document, Types, Query } from 'mongoose';
 
 // --- Interfejsy odpowiadające schematowi ---
 
-interface LightingInfo {
+export interface LightingInfo {
     variant?: 'day_natural' | 'evening_natural' | 'night_natural' | 'artificial' | 'mixed' | null;
     needs_extra_sources?: boolean;
     extra_sources_details?: string;
     emotional_note?: string;
 }
 
-interface ProductionChecklist {
+export interface ProductionChecklist {
     has_risk?: boolean;
     has_children?: boolean;
     needs_permit?: boolean; // Zmienione z needs_permit_hint na bardziej konkretne pole

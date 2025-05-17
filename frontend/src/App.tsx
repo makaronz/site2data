@@ -1,5 +1,5 @@
 // Projekt używa Material UI jako jedynego systemu stylowania
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Box, Button, Container, Paper, Typography, CircularProgress, Snackbar, Alert, Stack, LinearProgress, Fade, Toolbar } from '@mui/material';
 import { useDropzone } from 'react-dropzone';
 import PDFUpload from './components/PDFUpload';
@@ -31,6 +31,12 @@ import DifficultScenesDisplay from './components/analysis_displays/DifficultScen
 import PermitsDisplay from './components/analysis_displays/PermitsDisplay';
 import SpecialGearDisplay from './components/analysis_displays/SpecialGearDisplay';
 import ProductionRisksDisplay from './components/analysis_displays/ProductionRisksDisplay';
+import ProductionChecklistDisplay from './components/analysis_displays/ProductionChecklistDisplay';
+import SceneStructureDisplay from './components/analysis_displays/SceneStructureDisplay';
+import CharactersAnalysisDisplay from './components/analysis_displays/CharactersAnalysisDisplay';
+import ModalManager from './components/ModalManager';
+import type { ModalManagerHandle, ModalType } from './components/ModalManager';
+import LocationsAnalysisDisplay from './components/analysis_displays/LocationsAnalysisDisplay';
 
 const MAX_SIZE_MB = 10;
 const drawerWidth = 240;
@@ -83,10 +89,15 @@ const allPossibleSectionsAnalysis: { key: AnalysisSection; label: string; dataKe
   { key: 'POZWOLENIA', label: 'Potrzebne Pozwolenia', dataKey: 'permits' },
   { key: 'SPRZĘT SPECJALNY', label: 'Sprzęt Specjalny', dataKey: 'special_gear' },
   { key: 'RYZYKA PRODUKCYJNE', label: 'Ryzyka Produkcyjne', dataKey: 'production_risks' },
+  { key: 'CHECKLISTA PRODUKCYJNA', label: 'Checklista Produkcyjna', dataKey: 'production_checklist' },
 ];
 
 // ZAKTUALIZOWANA FUNKCJA renderAnalysisContent
-const renderAnalysisContent = (section: AnalysisSection, result: AnalysisResult | null) => {
+const renderAnalysisContent = (
+  section: AnalysisSection, 
+  result: AnalysisResult | null,
+  modalManagerRef?: React.RefObject<ModalManagerHandle>
+) => {
   if (!result) {
     return <Typography>Brak wyników analizy do wyświetlenia. Prześlij plik i uruchom analizę.</Typography>;
   }
@@ -94,6 +105,13 @@ const renderAnalysisContent = (section: AnalysisSection, result: AnalysisResult 
   if (Object.keys(result).length === 0) {
     return <Typography>Otrzymano pusty obiekt wyników analizy. Sprawdź odpowiedź z API.</Typography>;
   }
+
+  // Funkcja do otwierania modali dla scen, postaci i lokacji
+  const handleEntityClick = (type: ModalType, id: string) => {
+    if (modalManagerRef?.current) {
+      modalManagerRef.current.openModal(type, id);
+    }
+  };
 
   switch (section) {
     case 'METADANE PRODUKCJI':
@@ -103,34 +121,26 @@ const renderAnalysisContent = (section: AnalysisSection, result: AnalysisResult 
         return <Typography>Brak danych o metadanych produkcji.</Typography>;
       }
     case 'STRUKTURA SCEN':
-        if (result.analysis && result.analysis.critical_scenes && result.analysis.critical_scenes.length > 0) {
-            return (
-              <Paper elevation={3} sx={{ p: 2 }}>
-                <Typography variant="h5" sx={{ mb: 2 }}>Kluczowe Sceny (Struktura)</Typography>
-                <pre>{JSON.stringify(result.analysis.critical_scenes, null, 2)}</pre>
-              </Paper>
-            );
-        } else if (result.analysis) {
-            return (
-                <Paper elevation={3} sx={{ p: 2 }}>
-                  <Typography variant="h5" sx={{ mb: 2 }}>Ogólne Informacje o Strukturze</Typography>
-                  <Typography>Liczba scen: {result.analysis.number_of_scenes || 'Nie podano'}</Typography>
-                  <Typography>Liczba postaci: {result.analysis.number_of_characters || 'Nie podano'}</Typography>
-                </Paper>
-              );
-        }
-        else {
-            return <Typography>Brak danych o strukturze scen.</Typography>;
-        }
+        // Używamy naszego nowego komponentu SceneStructureDisplay
+        return <SceneStructureDisplay 
+          analysisResult={result}
+          onSceneClick={(sceneId) => handleEntityClick('scene', sceneId)}
+        />;
     case 'POSTACI':
       if (result.roles && result.roles.roles && result.roles.roles.length > 0) {
-        return <RolesDisplay rolesData={result.roles} />;
+        return <CharactersAnalysisDisplay 
+          analysisResult={result}
+          onCharacterClick={(characterId) => handleEntityClick('character', characterId)}
+        />;
       } else {
         return <Typography>Brak danych o postaciach.</Typography>;
       }
     case 'LOKACJE':
       if (result.locations && result.locations.locations && result.locations.locations.length > 0) {
-        return <LocationsDisplay locationsData={result.locations} />;
+        return <LocationsAnalysisDisplay 
+          analysisResult={result}
+          onLocationClick={(locationId) => handleEntityClick('location', locationId)}
+        />;
       } else {
         return <Typography>Brak danych o lokacjach.</Typography>;
       }
@@ -182,6 +192,13 @@ const renderAnalysisContent = (section: AnalysisSection, result: AnalysisResult 
       } else {
         return <Typography>Brak danych o ryzykach produkcyjnych.</Typography>;
       }
+    case 'CHECKLISTA PRODUKCYJNA':
+      // Ponieważ dla symulacji nie mamy prawdziwych danych w result.production_checklist,
+      // przekazujemy cały obiekt result i wewnątrz komponentu symulujemy dane
+      return <ProductionChecklistDisplay 
+        analysisResult={result} 
+        onSceneClick={(sceneId) => handleEntityClick('scene', sceneId)} 
+      />;
     default:
       const genericData = (result as any)[section.toLowerCase().replace(/\s+/g, '_')]; 
       if (genericData && typeof genericData === 'object' && Object.keys(genericData).length > 0) {
@@ -237,6 +254,9 @@ function App() {
   const [scriptId, setScriptId] = useState<string | null>(null);
   const [processedFileName, setProcessedFileName] = useState<string | null>(null);
 
+  // Referencja do zarządcy modali
+  const modalManagerRef = useRef<ModalManagerHandle>(null);
+
   const cache = Cache.getInstance();
   const offlineManager = OfflineManager.getInstance();
 
@@ -256,7 +276,7 @@ function App() {
 
   useEffect(() => {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//localhost:3001/ws/script-analysis`;
+    const wsUrl = `${protocol}//localhost:5001/ws/script-analysis`;
     const websocket = new WebSocket(wsUrl);
     websocket.onopen = () => setError(null);
     websocket.onmessage = (event) => {
@@ -285,9 +305,15 @@ function App() {
         setError('Błąd przetwarzania odpowiedzi z serwera');
       }
     };
-    websocket.onerror = () => setError('Błąd połączenia WebSocket. Sprawdź, czy backend jest uruchomiony i obsługuje WebSocket.');
+    websocket.onerror = (event) => {
+      console.error('WebSocket error:', event);
+      setError('Błąd połączenia WebSocket. Sprawdź, czy backend jest uruchomiony i obsługuje WebSocket.');
+    };
     websocket.onclose = (event) => {
-      if (event.code !== 1000) setError(`Połączenie WebSocket zostało zamknięte: ${event.reason || 'Nieznany powód'}`);
+      console.log('WebSocket closed with code:', event.code, 'reason:', event.reason);
+      if (event.code !== 1000) {
+        setError(`Połączenie WebSocket zostało zamknięte: Kod ${event.code} - ${event.reason || 'Nieznany powód'}`);
+      }
     };
     setWs(websocket);
     return () => {
@@ -337,6 +363,27 @@ function App() {
         .finally(() => setGraphLoading(false));
     }
   }, [selectedSection, scriptId]);
+
+  useEffect(() => {
+    if (!selectedFile) return;
+    console.log(`Wybrano plik: ${selectedFile.name} (${formatFileSize(selectedFile.size)})`);
+    
+    // Sprawdzenie czy mamy zapisane wyniki w pamięci podręcznej dla tego pliku
+    const cacheKey = `${selectedFile.name}_${selectedFile.size}`;
+    const cachedResult = cache.get(cacheKey);
+    
+    if (cachedResult) {
+      setSnackbar({
+        open: true, 
+        message: 'Wczytano zapisane wyniki analizy z pamięci podręcznej.', 
+        severity: 'info'
+      });
+      setAnalysisResult(cachedResult);
+    } else {
+      setAnalysisResult(null); // Resetujemy wyniki, jeśli nie mamy w cache
+    }
+    
+  }, [selectedFile]);
 
   const onDrop = (acceptedFiles: File[]) => {
     if (acceptedFiles.length > 0) {
@@ -536,7 +583,7 @@ function App() {
               {scriptId && <Box mt={2}><DownloadResults jobId={scriptId} fileName={processedFileName || undefined} /></Box>}
             </Box>
             <Box sx={{ flex: 1 }}>
-              {renderAnalysisContent(activeSection, analysisResult)}
+              {renderAnalysisContent(activeSection, analysisResult, modalManagerRef)}
             </Box>
           </Box>
         ) : (
@@ -556,103 +603,214 @@ function App() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <Box sx={{ display: 'flex', height: '100vh', flexDirection: 'column' }}>
-        <TopAppBar darkMode={darkMode} onToggleTheme={() => setDarkMode(!darkMode)} />
-        <Box sx={{ display: 'flex', flexGrow: 1, overflow: 'hidden' }}>
-          <Sidebar selected={selectedSection} onSelect={setSelectedSection} />
+      <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh', bgcolor: 'background.default' }}>
+        <TopAppBar 
+          toggleDarkMode={() => setDarkMode(!darkMode)} 
+          darkMode={darkMode} 
+          drawerWidth={drawerWidth} 
+          openApiKeyDialog={() => {}} 
+        />
+        
+        <Box sx={{ display: 'flex', flexGrow: 1, overflow: 'hidden', p: 0 }}>
+          {/* Sidebar */}
+          <Sidebar
+            drawerWidth={drawerWidth}
+            selectedSection={selectedSection}
+            sections={[
+              { id: 'Dashboard', label: 'Dashboard', icon: 'Dashboard' },
+              { id: 'Analysis', label: 'Analiza Scenariusza', icon: 'Analytics' }
+            ]}
+            onSectionChange={setSelectedSection}
+          />
+          
+          {/* Main content */}
           <Box
             component="main"
             sx={{
               flexGrow: 1,
               p: 3,
-              width: `calc(100% - ${drawerWidth}px)`,
-              overflowY: 'auto',
-              display: 'flex', // Dodane dla układu AnalysisMenu i contentu
-              flexDirection: 'column', // Content poniżej menu jeśli za wąsko, lub obok
+              overflowY: 'hidden',
+              display: 'flex',
+              flexDirection: 'column',
+              height: '100%',
+              width: { sm: `calc(100% - ${drawerWidth}px)` },
             }}
           >
-            <Toolbar /> {/* Aby uniknąć nachodzenia na TopAppBar */}
-            
-            {selectedSection === 'Dashboard' && (
-              <Container maxWidth="lg">
-                <Typography variant="h4" gutterBottom>Dashboard</Typography>
-                
+            {selectedSection === 'Dashboard' ? (
+              <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
                 <Paper 
-                  {...getRootProps()} 
-                  sx={{ p: 4, mb: 2, border: '2px dashed grey', textAlign: 'center', cursor: 'pointer', backgroundColor: isDragActive ? 'action.hover' : 'background.paper' }}
+                  elevation={3} 
+                  sx={{ p: 3, mb: 3, bgcolor: 'background.paper' }}
                 >
-                  <input {...getInputProps()} />
-                  {isDragActive ? <Typography>Upuść plik tutaj...</Typography> : <Typography>Przeciągnij i upuść plik PDF tutaj, lub kliknij, aby wybrać</Typography>}
-                  {selectedFile && <Typography sx={{mt:1}}>Wybrany plik: {selectedFile.name}</Typography>}
+                  <Stack spacing={2}>
+                    <Typography variant="h5" gutterBottom>
+                      Wgraj scenariusz do analizy (PDF)
+                    </Typography>
+                    <PDFUpload 
+                      onFileSelect={setSelectedFile}
+                      maxSizeMB={MAX_SIZE_MB}
+                      onUploadProgress={setUploadProgress}
+                      onError={setError}
+                    />
+                    
+                    {selectedFile && (
+                      <Box>
+                        <Typography>
+                          Wybrany plik: {selectedFile.name} ({formatFileSize(selectedFile.size)})
+                        </Typography>
+                        
+                        <ApiKeyInput 
+                          value={openaiApiKey}
+                          onChange={setOpenaiApiKey}
+                        />
+                        
+                        <Box sx={{ mt: 2 }}>
+                          <Button
+                            variant="contained"
+                            color="primary"
+                            onClick={() => {
+                              // Logika analizy
+                              console.log("Rozpoczynam analizę...");
+                              // Tu można dodać funkcję inicjowania analizy przez websocket
+                            }}
+                            disabled={!selectedFile || !openaiApiKey}
+                          >
+                            Uruchom pełną analizę
+                          </Button>
+                        </Box>
+                      </Box>
+                    )}
+                    
+                    {isUploading && (
+                      <UploadProgress 
+                        progress={uploadProgress}
+                        status={uploadStatus}
+                        onCancel={() => {
+                          // Logika anulowania uploadu
+                          console.log("Anulowano upload");
+                          setIsUploading(false);
+                        }}
+                      />
+                    )}
+                    
+                    {error && (
+                      <Alert severity="error" onClose={() => setError(null)}>
+                        {error}
+                      </Alert>
+                    )}
+                  </Stack>
                 </Paper>
-
-                {isUploading && <LinearProgress variant="determinate" value={uploadProgress} sx={{mb: 2}} />}
-                {uploadStatus && <Typography color={error ? "error" : "success"} sx={{mb: 2}}>{uploadStatus}</Typography>}
                 
-                <ApiKeyInput 
-                  initialValue={openaiApiKey} 
-                  onSave={(newApiKey) => {
-                    setOpenaiApiKey(newApiKey);
-                    localStorage.setItem('openaiApiKey', newApiKey); // Opcjonalnie, jeśli chcemy to nadal robić tutaj
-                    setSnackbar({open: true, message: 'Klucz API został zapisany.', severity: 'success'});
-                  }}
-                />
-                
-                <Button onClick={handleSubmit} disabled={!selectedFile || isUploading || !openaiApiKey.startsWith('sk-')} variant="contained" sx={{ mt: 2 }}>
-                  Prześlij i Analizuj Scenariusz (REST)
-                </Button>
-                
-                 {analysisProgress && (
-                  <Box sx={{ mt: 2 }}>
-                    <Typography>{analysisProgress.message}</Typography>
-                    {analysisProgress.stage === 'processing' && <CircularProgress size={20} />}
-                  </Box>
+                {analysisProgress && (
+                  <Paper elevation={3} sx={{ p: 3, mb: 3, bgcolor: 'background.paper' }}>
+                    <Typography variant="h6" gutterBottom>
+                      Postęp analizy: {Math.round(analysisProgress.progress * 100)}%
+                    </Typography>
+                    <LinearProgress 
+                      variant="determinate" 
+                      value={analysisProgress.progress * 100} 
+                      sx={{ mb: 2 }}
+                    />
+                    <Typography variant="body2" color="text.secondary">
+                      Status: {analysisProgress.status}
+                    </Typography>
+                  </Paper>
                 )}
-                {scriptId && analysisResult && (
-                  <Box sx={{mt: 2}}>
-                    <DownloadResults jobId={scriptId} fileName={processedFileName || undefined} />
-                  </Box>
-                )}
-              </Container>
-            )}
+                
+                {analysisResult && Object.keys(analysisResult).length > 0 && (
+                  <Paper elevation={3} sx={{ p: 3, mb: 3, bgcolor: 'background.paper', flex: 1, overflow: 'auto' }}>
+                    <Typography variant="h5" gutterBottom>
+                      Wyniki analizy
+                    </Typography>
+                    <AnalysisMenu 
+                      sections={allPossibleSectionsAnalysis.filter(section => 
+                        // Filtrujemy sekcje, które mają dane
+                        section.dataKey ? analysisResult[section.dataKey] && Object.keys(analysisResult[section.dataKey] || {}).length > 0 : true
+                      )}
+                      activeSection={activeSection}
+                      onSectionChange={setActiveSection}
+                    />
 
-            {selectedSection === 'Analiza scenariusza' && (
-              <Box sx={{ display: 'flex', flexGrow: 1, gap: 3 }}> {/* Używamy flex i gap */}
-                <Box sx={{ width: drawerWidth, flexShrink: 0, borderRight: 1, borderColor: 'divider', pr: 2 }}>
-                  <AnalysisMenu
-                    activeSection={activeSection}
-                    onSectionChange={setActiveSection}
-                    analysisResult={analysisResult} // Przekazujemy analysisResult
-                  />
-                </Box>
-                <Box sx={{ flexGrow: 1, overflowY: 'auto', pl: 2 }}> {/* Dodajemy overflowY i padding */}
-                  {renderAnalysisContent(activeSection, analysisResult)}
-                </Box>
+                    <Box sx={{ mt: 3 }}>
+                      {renderAnalysisContent(activeSection, analysisResult, modalManagerRef)}
+                    </Box>
+                  </Paper>
+                )}
               </Box>
-            )}
-
-            {selectedSection === 'Graf' && (
-              <Container maxWidth="lg" sx={{ height: '100%'}}>
-                {graphLoading ? <CircularProgress /> : 
-                 (graphData && graphData.scenes.length > 0 ? 
-                    <GraphView scenes={graphData.scenes} relations={graphData.relations} /> : 
-                    <Typography>Brak danych do wyświetlenia grafu lub graf jest pusty.</Typography>)}
-              </Container>
-            )}
-            
-            {/* Placeholder dla innych sekcji */}
-            {selectedSection === 'Wyszukiwarka' && <Typography variant="h4">Wyszukiwarka (w budowie)</Typography>}
-            {selectedSection === 'Czat z AI' && <Typography variant="h4">Czat z AI (w budowie)</Typography>}
-            {selectedSection === 'Ustawienia' && <Typography variant="h4">Ustawienia (w budowie)</Typography>}
-            {selectedSection === 'Pomoc' && <Typography variant="h4">Pomoc (w budowie)</Typography>}
-
+            ) : selectedSection === 'Analysis' ? (
+              <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                <Paper elevation={3} sx={{ p: 3, mb: 3, bgcolor: 'background.paper' }}>
+                  <Typography variant="h5" gutterBottom>
+                    Wizualizacja struktury scenariusza
+                  </Typography>
+                  {graphData ? (
+                    <GraphView scenes={graphData.scenes} relations={graphData.relations} />
+                  ) : graphLoading ? (
+                    <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+                      <CircularProgress />
+                    </Box>
+                  ) : (
+                    <Button 
+                      variant="contained" 
+                      onClick={() => {
+                        setGraphLoading(true);
+                        // Symulacja ładowania danych z API
+                        setTimeout(() => {
+                          setGraphData({ scenes, relations });
+                          setGraphLoading(false);
+                        }, 1500);
+                      }}
+                    >
+                      Załaduj wizualizację
+                    </Button>
+                  )}
+                </Paper>
+                
+                {/* Wyświetlanie wybranej sekcji analizy */}
+                {analysisResult && (
+                  <Paper elevation={3} sx={{ p: 3, mb: 3, bgcolor: 'background.paper', flex: 1, overflow: 'auto' }}>
+                    <Box sx={{ display: 'flex', height: '100%' }}>
+                      <Box sx={{ width: 240, borderRight: 1, borderColor: 'divider' }}>
+                        <AnalysisMenu 
+                          sections={allPossibleSectionsAnalysis.filter(section => 
+                            section.dataKey ? analysisResult[section.dataKey] && Object.keys(analysisResult[section.dataKey] || {}).length > 0 : true
+                          )}
+                          activeSection={activeSection}
+                          onSectionChange={setActiveSection}
+                          orientation="vertical"
+                        />
+                      </Box>
+                      <Box sx={{ flexGrow: 1, overflowY: 'auto', pl: 2 }}> {/* Dodajemy overflowY i padding */}
+                        {renderAnalysisContent(activeSection, analysisResult, modalManagerRef)}
+                      </Box>
+                    </Box>
+                  </Paper>
+                )}
+              </Box>
+            ) : null}
           </Box>
         </Box>
-        <Snackbar open={snackbar.open} autoHideDuration={6000} onClose={handleSnackbarClose} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
-          <Alert onClose={handleSnackbarClose} severity={snackbar.severity} sx={{ width: '100%' }}>
+      
+        <Snackbar 
+          open={snackbar.open} 
+          autoHideDuration={6000} 
+          onClose={() => setSnackbar({...snackbar, open: false})}
+        >
+          <Alert 
+            onClose={() => setSnackbar({...snackbar, open: false})} 
+            severity={snackbar.severity}
+          >
             {snackbar.message}
           </Alert>
         </Snackbar>
+        
+        {/* Modal Manager - obsługuje wyświetlanie modali dla scen, postaci i lokacji */}
+        {analysisResult && (
+          <ModalManager 
+            ref={modalManagerRef}
+            analysisResult={analysisResult}
+          />
+        )}
       </Box>
     </ThemeProvider>
   );

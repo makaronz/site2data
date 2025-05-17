@@ -10,6 +10,7 @@ const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
 export const redisClient = new Redis(REDIS_URL, {
   maxRetriesPerRequest: 3,
   enableReadyCheck: true,
+  lazyConnect: true,
 });
 
 // Stream names (constants) - Re-export or define here
@@ -85,20 +86,28 @@ async function initializeRedisStreams(client: Redis, logger: Logger) {
 // Function to initialize Redis (accepts logger)
 export async function initializeRedis(logger: Logger) {
   return new Promise<void>((resolve, reject) => {
+    // Listener for successful connection
     redisClient.on('connect', () => {
       logger.info('Redis client connected');
+      // Initialize streams and groups after successful connection
       initializeRedisStreams(redisClient, logger).then(resolve).catch(reject);
     });
 
+    // Listener for connection errors
     redisClient.on('error', (err) => {
-      logger.error({ err }, 'Redis client connection error');
-      reject(err); // Reject promise on connection error
+      // Avoid rejecting multiple times if error occurs after initial connection attempt
+      if (redisClient.status !== 'end') { // 'end' status means it's already been closed/rejected
+        logger.error({ err }, 'Redis client connection error');
+        reject(err); 
+      }
     });
 
-    // Handle initial connection errors if Redis is not available on startup
+    // Attempt to connect
     redisClient.connect().catch(err => {
-        logger.error({ err }, 'Initial Redis connection failed');
-        reject(err);
+      // This catch is for errors during the .connect() call itself (e.g., config errors)
+      // The 'error' event listener above will handle ongoing/network-related errors.
+      logger.error({ err }, 'Failed to initiate Redis connection');
+      reject(err);
     });
   });
 } 

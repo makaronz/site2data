@@ -269,8 +269,18 @@ def initialize_clients():
         # logger.info("MongoDB indexes ensured (if uncommented).")
 
         # MinIO
+        minio_target_endpoint = os.getenv('MINIO_ENDPOINT', 'localhost:9000') # MINIO_ENDPOINT from env
+        # Ensure port 9000 is used if MINIO_ENDPOINT is just 'minio' and secure is False
+        if ':' not in minio_target_endpoint and not MINIO_USE_SSL:
+            minio_target_endpoint = f"{minio_target_endpoint}:9000"
+        elif ':' not in minio_target_endpoint and MINIO_USE_SSL:
+            # Default HTTPS port is 443, Minio client handles this if secure=True and no port
+            pass # Let Minio client use default 443 for https if no port
+
+        logger.info(f"Attempting to connect to MinIO at: {minio_target_endpoint}, secure: {MINIO_USE_SSL}") # Log endpoint
+
         minio_client = Minio(
-            MINIO_ENDPOINT,
+            minio_target_endpoint,
             access_key=MINIO_ACCESS_KEY,
             secret_key=MINIO_SECRET_KEY,
             secure=MINIO_USE_SSL
@@ -332,14 +342,18 @@ def shutdown_handler(signum, frame):
         logger.warning("Shutdown already in progress.")
 
 if __name__ == "__main__":
+    clients_initialized_successfully = initialize_clients() # Store result
+    if not clients_initialized_successfully:
+        logger.critical("Client initialization failed. Exiting worker-py now as per defined logic.") # More specific exit log
+        sys.exit(1) # Ensure exit
+
     signal.signal(signal.SIGINT, shutdown_handler)
     signal.signal(signal.SIGTERM, shutdown_handler)
-
-    if initialize_clients():
-        worker_loop()
-    else:
-        logger.critical("Exiting due to client initialization failure.")
-        sys.exit(1)
+    logger.info("Worker-py started. Waiting for jobs...")
+    logger.info("Attempting to start worker_loop...")
+    worker_loop()
+    logger.info("worker_loop has finished.")
+    logger.info("Worker-py shut down gracefully.")
 
     # Cleanup after loop exits
     logger.info("Cleaning up resources...")

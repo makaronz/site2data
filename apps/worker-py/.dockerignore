@@ -1,0 +1,21 @@
+# .dockerignore
+
+# Ignoruj cache Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Ignoruj lokalne środowiska wirtualne
+.venv
+venv
+env
+
+# Pliki systemowe
+.DS_Store
+Thumbs.db
+
+# Pliki edytora/IDE
+.vscode/
+.idea/
+*.swp 

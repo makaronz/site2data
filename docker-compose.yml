@@ -1,19 +1,17 @@
-version: '3.8'
-
 services:
   # Frontend (development server)
   web:
-    build:
-      context: ./apps/web
-      dockerfile: Dockerfile.dev
+    image: node:18-alpine
+    working_dir: /app/frontend
+    command: sh -c "npm install --legacy-peer-deps && npm run dev -- --host"
     ports:
-      - "${FRONTEND_PORT:-5173}:5173" # Vite default port
+      - "${FRONTEND_PORT:-5173}:5173"
     volumes:
-      - ./apps/web:/app
-      - /app/node_modules # Mount node_modules from container
+      - ./frontend:/app/frontend
     environment:
       - VITE_API_URL=http://api:${API_PORT:-3000}/trpc
       - VITE_SSE_URL=http://api:${API_PORT:-3000}/sse
+      - CHOKIDAR_USEPOLLING=true
     depends_on:
       - api
     networks:
@@ -23,7 +21,7 @@ services:
   api:
     build:
       context: ./apps/api
-      dockerfile: Dockerfile.dev
+      dockerfile: Dockerfile
     ports:
       - "${API_PORT:-3000}:3000"
     volumes:
@@ -41,7 +39,6 @@ services:
       - MINIO_BUCKET=${MINIO_BUCKET:-scripts}
       - WEAVIATE_URL=http://weaviate:8080
       - OPENAI_API_KEY=${OPENAI_API_KEY} # Needs to be set in .env
-      - WEAVIATE_API_KEY=${WEAVIATE_API_KEY} # Needs to be set in .env for Weaviate Cloud Services (WCS) if used
     depends_on:
       - redis
       - mongo
@@ -53,13 +50,13 @@ services:
   # Worker JS (Node.js)
   worker-js:
     build:
-      context: ./apps/worker-js
-      dockerfile: Dockerfile.dev
+      context: .
+      dockerfile: ./apps/worker-js/Dockerfile
     volumes:
       - ./apps/worker-js:/app
       - /app/node_modules # Mount node_modules from container
     environment:
-      - NODE_ENV=development
+      - NODE_ENV=production
       - REDIS_URL=redis://redis:6379
       - MONGO_URI=mongodb://mongo:27017/site2data
       - MINIO_ENDPOINT=minio
@@ -69,7 +66,6 @@ services:
       - MINIO_BUCKET=${MINIO_BUCKET:-scripts}
       - WEAVIATE_URL=http://weaviate:8080
       - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - WEAVIATE_API_KEY=${WEAVIATE_API_KEY}
     depends_on:
       - redis
       - mongo
@@ -82,7 +78,7 @@ services:
   worker-py:
     build:
       context: ./apps/worker-py
-      dockerfile: Dockerfile.dev
+      dockerfile: Dockerfile
     volumes:
       - ./apps/worker-py:/app
     environment:
@@ -95,9 +91,12 @@ services:
       - MINIO_SECRET_KEY=${MINIO_SECRET_KEY:-minioadmin}
       - MINIO_BUCKET=${MINIO_BUCKET:-scripts}
     depends_on:
-      - redis
-      - mongo
-      - minio
+      redis:
+        condition: service_started
+      mongo:
+        condition: service_started
+      minio:
+        condition: service_healthy
     networks:
       - site2data_net
 
@@ -133,7 +132,6 @@ services:
       PERSISTENCE_DATA_PATH: '/var/lib/weaviate'
       DEFAULT_VECTORIZER_MODULE: 'none' # Or configure text2vec-openai, etc.
       ENABLE_MODULES: '' # Add modules like text2vec-openai if needed
-      CLUSTER_HOSTNAME: 'node1'
     networks:
       - site2data_net
 
@@ -148,6 +146,11 @@ services:
       MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-minioadmin}
       MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-minioadmin}
     command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 2s
+      retries: 5
     networks:
       - site2data_net
 

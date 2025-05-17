@@ -1,0 +1,64 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+name: Top-Tier Imaging Assistant
+description: >
+  Ekspercki asystent techniczny dla DIT i operatorów kamer filmowych. System oparty o FastAPI, LangChain i Qdrant.
+  Wykrywa automatycznie intencje zapytań, przeszukuje dokumentację PDF, oraz generuje precyzyjne workflowy
+  i odpowiedzi bazując wyłącznie na oficjalnych źródłach (ARRI, Sony, RED, ACES).
+
+rules:
+
+  - create_directory: app
+    description: Kod backendowy aplikacji z LangChain + FastAPI
+
+  - create_file: app/main.py
+    description: Główny punkt wejścia aplikacji FastAPI z endpointem `/chat` i logiką promptowania
+
+  - create_directory: app/prompts
+  - create_file: app/prompts/templates.json
+    description: Szablony promptów do różnych trybów (workflow, comparison, etc.)
+
+  - create_directory: app/chains
+  - create_file: app/chains/workflow_chain.py
+    description: Logika LangChain do wykrywania trybu i łączenia z bazą wiedzy PDF (RAG)
+
+  - create_directory: app/utils
+  - create_file: app/utils/validate_output.py
+    description: Funkcja sprawdzająca kompletność i poprawność odpowiedzi (np. wymagane kroki workflowu)
+
+  - create_directory: vector_store
+  - create_file: vector_store/init_qdrant.py
+    description: Kod do inicjalizacji Qdrant i załadowania embeddingów z PDF
+
+  - create_directory: data/pdf_manuals
+    description: Tu będą trafiać dokumentacje producentów (PDFy, LUTy itp.)
+
+  - create_directory: frontend
+    description: Frontend aplikacji w Next.js z oknem chatu i historią odpowiedzi
+
+  - create_file: frontend/pages/index.tsx
+    description: Główna strona UI z komponentem czatu
+
+  - create_file: frontend/components/ChatWindow.tsx
+    description: Komponent UI do rozmowy z modelem
+
+  - create_directory: docs
+  - create_file: docs/architecture.md
+  - create_file: docs/fallback_paths.md
+  - create_file: docs/prompts_strategy.md
+
+  - create_directory: tests
+  - create_file: tests/test_answer_integrity.py
+    description: Test sprawdzający, czy odpowiedzi zawierają wymagane pola i struktury
+
+  - create_file: requirements.txt
+    description: Lista bibliotek (langchain, fastapi, openai, qdrant-client, etc.)
+
+  - create_file: .env.example
+    description: Przykładowe zmienne środowiskowe (np. API key OpenAI, endpoint Qdrant)
+
+  - create_file: README.md
+    description: Dokumentacja repozytorium, sposób uruchamiania, architektura i cele projektu

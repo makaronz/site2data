@@ -2,17 +2,17 @@ import { initTRPC, TRPCError } from '@trpc/server';
 import { z } from 'zod';
 import { Context } from './context';
 import { MinioClient, MINIO_BUCKET, redisClient, STREAM_PDF_CHUNKS, jobsCollection } from './clients'; // Import clients
-import { Job, JobStatus } from '../../packages/types/src'; // Import shared types
+// import { Job, JobStatus } from '../../packages/types/src'; // Import shared types (tymczasowo zakomentowane)
 import { randomUUID } from 'crypto'; // For generating job IDs
 const mongoose = require('mongoose'); // Używamy require dla mongoose, zgodnie z wcześniejszymi ustaleniami
 
 // Import modeli i interfejsów dla naszych encji
-import { Scene, IScene, LightingInfo as ILightingInfo, ProductionChecklist as IProductionChecklist } from '../models/sceneModel'; // Dodano ILightingInfo i IProductionChecklist
-import { Character, ICharacter } from '../models/characterModel'; // Import Character model
-import { Location, ILocation } from '../models/locationModel'; // Import Location model
-import { Prop, IProp } from '../models/propModel'; // Import Prop model
-import { Vehicle, IVehicle } from '../models/vehicleModel'; // Import Vehicle model
-import { Weapon, IWeapon } from '../models/weaponModel'; // Import Weapon model
+import { Scene, IScene, LightingInfo as ILightingInfo, ProductionChecklist as IProductionChecklist } from './models/sceneModel'; // Dodano ILightingInfo i IProductionChecklist
+import { Character, ICharacter } from './models/characterModel'; // Import Character model
+import { Location, ILocation } from './models/locationModel'; // Import Location model
+import { Prop, IProp } from './models/propModel'; // Import Prop model
+import { Vehicle, IVehicle } from './models/vehicleModel'; // Import Vehicle model
+import { Weapon, IWeapon } from './models/weaponModel'; // Import Weapon model
 
 // Avoid exporting the entire t object
 // since it's not very descriptive.创
@@ -173,9 +173,9 @@ export const appRouter = router({
       const jobId = `job-${randomUUID()}`;
       const now = new Date();
 
-      const newJob: Job = {
+      const newJob: any = {
         jobId,
-        status: 'PENDING' as JobStatus,
+        status: 'PENDING' as any,
         objectKey: input.objectKey,
         createdAt: now,
         updatedAt: now,
@@ -803,6 +803,33 @@ export const appRouter = router({
   //     // Replace with actual DB logic
   //     return { jobId: input.jobId, status: 'COMPLETED', /* other details */ };
   //   }),
+
+  getJobStatus: publicProcedure // Nowa procedura
+    .input(z.object({ jobId: z.string().startsWith('job-', { message: "Nieprawidłowy format jobId"}) }))
+    .query(async ({ input }) => {
+      try {
+        const collection = jobsCollection();
+        const job = await collection.findOne({ jobId: input.jobId });
+
+        if (!job) {
+          throw new TRPCError({
+            code: 'NOT_FOUND',
+            message: `Nie znaleziono zadania o ID: ${input.jobId}`,
+          });
+        }
+        // Upewnij się, że typ zwracany jest zgodny z oczekiwaniami frontendu (interfejs Job)
+        // W szczególności upewnij się, że status jest typu JobStatus
+        return job as any; 
+      } catch (error: any) {
+        console.error(`[getJobStatus] Błąd podczas pobierania statusu zadania ${input.jobId}:`, error);
+        if (error instanceof TRPCError) throw error;
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: error.message || 'Błąd serwera podczas pobierania statusu zadania.',
+          cause: error,
+        });
+      }
+    }),
 
     // TODO: Add searchScenes procedure
   // searchScenes: publicProcedure

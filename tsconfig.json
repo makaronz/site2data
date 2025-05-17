@@ -9,6 +9,7 @@
     "checkJs": true,
     "isolatedModules": true,
     "strict": true,
+    "jsx": "react-jsx",
     "moduleResolution": "bundler",
     "paths": {
       "$lib": ["./src/lib"],

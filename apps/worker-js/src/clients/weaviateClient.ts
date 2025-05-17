@@ -1,7 +1,7 @@
 import weaviate, { WeaviateClient, ObjectsBatcher, WeaviateClass } from 'weaviate-ts-client';
 import dotenv from 'dotenv';
 import { Logger } from 'pino';
-import { Scene } from '../../packages/types/src'; // Import Scene type for properties
+// import { Scene } from '../../packages/types/src'; // Tymczasowo zakomentowane
 
 dotenv.config();
 

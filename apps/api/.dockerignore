@@ -1,0 +1,22 @@
+# .dockerignore
+
+# Ignoruj lokalne zależności Node, ponieważ będą instalowane wewnątrz kontenera
+node_modules
+
+# Ignoruj logi npm
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Ignoruj katalogi wyjściowe kompilacji, jeśli nie są potrzebne do kopiowania (choć w naszym przypadku kopiujemy dist z etapu dev)
+# dist 
+# build
+
+# Pliki systemowe
+.DS_Store
+Thumbs.db
+
+# Pliki edytora/IDE
+.vscode/
+.idea/
+*.swp 
