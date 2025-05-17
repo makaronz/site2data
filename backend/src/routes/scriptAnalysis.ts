@@ -375,10 +375,8 @@ router.post('/analyze', upload.single('script'), validateUpload, async (req, res
       let fileContent: string;
       
       if (req.body.type === 'pdf') {
-        // Obsługa plików PDF
-        const dataBuffer = fs.readFileSync(filePath);
-        const data = await pdf(dataBuffer);
-        fileContent = data.text;
+        // Używamy centralnej funkcji do ekstrakcji tekstu z PDF
+        fileContent = await extractTextFromPdf(filePath);
       } else {
         // Obsługa plików tekstowych
         fileContent = fs.readFileSync(filePath, 'utf-8');
@@ -386,10 +384,7 @@ router.post('/analyze', upload.single('script'), validateUpload, async (req, res
       
       // Prosty test czy plik jest czytelny
       if (!fileContent || fileContent.length === 0) {
-        return res.status(400).json({
-          success: false,
-          message: 'Plik jest pusty lub nie może zostać odczytany'
-        });
+        throw new FileProcessingError('Plik jest pusty lub nie może zostać odczytany');
       }
 
       console.log('Rozpoczynam analizę pliku...');
@@ -409,11 +404,21 @@ router.post('/analyze', upload.single('script'), validateUpload, async (req, res
         result: result
       });
     } catch (readError) {
-      console.error('Błąd podczas odczytu pliku:', readError);
-      return res.status(500).json({
-        success: false,
-        message: 'Nie można odczytać przesłanego pliku'
-      });
+      logError(readError, { path: filePath, operation: 'file_read' });
+      
+      // Użyj odpowiedniego kodu błędu i komunikatu zależnie od typu błędu
+      if (readError instanceof FileProcessingError) {
+        return res.status(400).json({
+          success: false,
+          message: readError.message,
+          code: readError.code
+        });
+      } else {
+        return res.status(500).json({
+          success: false,
+          message: 'Nie można odczytać przesłanego pliku'
+        });
+      }
     } finally {
       // Usuń plik po analizie
       try {
@@ -424,7 +429,7 @@ router.post('/analyze', upload.single('script'), validateUpload, async (req, res
       }
     }
   } catch (error) {
-    console.error('Błąd podczas analizy skryptu:', error);
+    logError(error, { endpoint: '/api/script/analyze' });
     res.status(500).json({
       success: false,
       message: 'Wystąpił błąd podczas analizy skryptu'
