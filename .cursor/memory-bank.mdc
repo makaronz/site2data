@@ -1,0 +1,174 @@
+# Memory Bank: Site2Data Repository Audit and Repair
+
+## What Broke and Why
+
+### 1. WebSocket Type Mismatch
+**What Broke**: WebSocket communication between frontend and backend was failing due to inconsistent type definitions.
+**Why**: The frontend and backend had separate, incompatible type definitions for WebSocket messages. When the backend sent messages, the frontend couldn't properly type-check or process them.
+**Root Cause**: Lack of a shared type system between frontend and backend in a monorepo structure.
+
+### 2. Missing WebSocket Connection Component
+**What Broke**: WebSocket connections were unreliable, with potential memory leaks and reconnection issues.
+**Why**: The application lacked a dedicated WebSocket connection management component, leading to scattered connection logic.
+**Root Cause**: Incomplete implementation of the WebSocket architecture, with focus on message handling but not connection lifecycle.
+
+### 3. Incomplete WebSocket Implementation
+**What Broke**: WebSocket server had placeholder logic that didn't properly integrate with the actual services.
+**Why**: The WebSocket server was implemented with temporary mock data rather than connecting to real services.
+**Root Cause**: Possibly an incremental development approach where the WebSocket infrastructure was set up before the services were ready.
+
+### 4. Missing WebSocket Authentication
+**What Broke**: WebSocket connections were insecure, allowing unauthorized access.
+**Why**: No authentication mechanism was implemented for WebSocket connections.
+**Root Cause**: Security considerations were likely postponed during initial development.
+
+### 5. Version Mismatch in Dependencies
+**What Broke**: Potential runtime errors and inconsistent behavior across packages.
+**Why**: Different packages in the monorepo used different versions of the same dependencies.
+**Root Cause**: Decentralized dependency management without version alignment enforcement.
+
+### 6. Missing Error Boundaries
+**What Broke**: Component errors could crash the entire application.
+**Why**: No React error boundaries were implemented to contain failures.
+**Root Cause**: Incomplete error handling strategy in the frontend architecture.
+
+### 7. Inconsistent Error Handling
+**What Broke**: Errors were handled differently across the codebase, leading to unpredictable error reporting.
+**Why**: No standardized approach to error handling and reporting.
+**Root Cause**: Lack of error handling guidelines or middleware in the initial architecture.
+
+### 8. File Upload Validation Mismatch
+**What Broke**: Files accepted by frontend might be rejected by backend, leading to confusing user experience.
+**Why**: Frontend and backend had different validation rules for file uploads.
+**Root Cause**: Validation logic duplicated rather than shared between frontend and backend.
+
+### 9. Potential Memory Leaks in useEffect
+**What Broke**: Components with subscriptions or timers could cause memory leaks.
+**Why**: Missing cleanup functions in useEffect hooks.
+**Root Cause**: Incomplete understanding or implementation of React's useEffect cleanup pattern.
+
+### 10. Hardcoded Text in UI Components
+**What Broke**: UI was not localizable and could cause hydration errors if server/client languages differed.
+**Why**: Text was hardcoded in Polish without internationalization.
+**Root Cause**: Internationalization was likely postponed or not considered in initial development.
+
+### 11. Missing API Error Handling
+**What Broke**: Generic error messages that didn't help users resolve issues.
+**Why**: Incomplete error handling for API responses.
+**Root Cause**: Focus on happy path implementation without comprehensive error handling.
+
+### 12. Simulated Data Loading
+**What Broke**: Disconnection between frontend and backend data flow.
+**Why**: Using setTimeout to simulate API calls instead of actual API integration.
+**Root Cause**: Frontend development proceeded independently of backend, using mock data.
+
+### 13. Inconsistent State Management
+**What Broke**: Difficult state synchronization and potential race conditions.
+**Why**: Mix of local state, Zustand, and potentially React Query without clear boundaries.
+**Root Cause**: Lack of state management guidelines in the architecture.
+
+## Pattern Updates
+
+### 1. Monorepo Type Sharing
+**Pattern**: Create a dedicated shared types package in monorepos with frontend and backend.
+**Implementation**: 
+- Place shared types in `packages/shared-types`
+- Export interfaces, enums, and validation schemas
+- Import in both frontend and backend
+- Include in build pipeline
+
+### 2. WebSocket Connection Management
+**Pattern**: Use a dedicated WebSocket hook and context for connection management.
+**Implementation**:
+- Create a custom hook with connection lifecycle management
+- Implement reconnection logic with exponential backoff
+- Provide connection status to components
+- Handle authentication and message parsing
+
+### 3. Error Boundary Strategy
+**Pattern**: Implement strategic error boundaries at key component boundaries.
+**Implementation**:
+- Create a reusable ErrorBoundary component
+- Place at route boundaries and around critical features
+- Log errors to monitoring service
+- Provide user-friendly fallback UI
+
+### 4. Unified Error Handling
+**Pattern**: Use middleware for API errors and a centralized service for other errors.
+**Implementation**:
+- Create error handling middleware for Express
+- Implement centralized error reporting service
+- Standardize error response format
+- Include error codes and user-friendly messages
+
+### 5. Shared Validation
+**Pattern**: Share validation schemas between frontend and backend.
+**Implementation**:
+- Define validation schemas in shared package
+- Use Zod for type-safe validation
+- Apply validation in both frontend and backend
+- Generate TypeScript types from validation schemas
+
+### 6. React Hook Cleanup
+**Pattern**: Always include cleanup functions in useEffect hooks with subscriptions.
+**Implementation**:
+- Return cleanup function from useEffect
+- Cancel subscriptions and timers
+- Remove event listeners
+- Clear intervals and timeouts
+
+### 7. State Management Boundaries
+**Pattern**: Define clear boundaries for different state management approaches.
+**Implementation**:
+- Use local state for component-specific UI state
+- Use Zustand for shared application state
+- Use React Query for server state
+- Document patterns in codebase
+
+## What to Avoid in Future
+
+1. **Duplicated Type Definitions**: Never define the same types separately in frontend and backend. Always use shared types.
+
+2. **Missing WebSocket Lifecycle Management**: Always implement proper connection management, including reconnection logic and authentication.
+
+3. **Inconsistent Dependency Versions**: Maintain consistent versions across packages in a monorepo to prevent compatibility issues.
+
+4. **Incomplete Error Handling**: Implement comprehensive error handling from the start, including boundaries, middleware, and user feedback.
+
+5. **Hardcoded Text**: Use internationalization from the beginning, even if only one language is initially supported.
+
+6. **Mock Data Without Clear Transition Path**: When using mock data during development, ensure a clear path to replace it with real API integration.
+
+7. **Scattered State Management**: Define clear guidelines for when to use different state management approaches.
+
+8. **Missing Effect Cleanup**: Always include cleanup functions in useEffect hooks that create subscriptions or timers.
+
+9. **Separate Validation Logic**: Share validation logic between frontend and backend to ensure consistency.
+
+10. **Ignoring Authentication in WebSockets**: Apply the same authentication standards to WebSockets as to REST APIs.
+
+## Tools/Framework Interactions Observed
+
+1. **React + WebSockets**: React's component lifecycle requires careful management of WebSocket connections to prevent memory leaks and ensure proper reconnection.
+
+2. **Monorepo + TypeScript**: Monorepos need explicit type sharing strategies to maintain type safety across packages.
+
+3. **Express + Error Handling**: Express benefits from centralized error handling middleware to standardize error responses.
+
+4. **React + Error Boundaries**: React's error boundaries are essential for preventing entire application crashes due to component errors.
+
+5. **Zustand + React Query**: These state management tools can coexist but need clear boundaries to prevent state duplication or conflicts.
+
+6. **Vite + SSR**: Vite supports SSR but requires specific configuration that wasn't implemented in this project.
+
+7. **WebSockets + Authentication**: WebSockets require explicit authentication handling, unlike REST APIs where it's often handled by middleware.
+
+8. **React + Internationalization**: React components with hardcoded text can cause hydration errors in SSR contexts if languages differ.
+
+9. **TypeScript + Validation**: TypeScript types and runtime validation need to be aligned to prevent type/runtime mismatches.
+
+10. **Express + WebSockets**: Integrating WebSockets with Express requires careful server setup and proper error handling.
+
+11. **React + useEffect**: React's useEffect hook requires cleanup functions to prevent memory leaks, especially with subscriptions.
+
+12. **Monorepo + Dependencies**: Monorepos need careful dependency management to prevent version conflicts and ensure consistent behavior.

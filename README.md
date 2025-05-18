@@ -1,234 +1,188 @@
 # Site2Data
 
----
+**Site2Data is an advanced, AI-powered platform designed for filmmakers and production teams to deeply analyze film scripts and streamline pre-production workflows. It leverages Large Language Models (OpenAI) to automatically extract, structure, and analyze vast amounts of data from screenplays (initially PDFs, with future support for other formats).**
 
-## Purpose and Audience
-
-**Site2Data** is an advanced platform for filmmakers, dedicated to the analysis of film scripts and, in the future, all film production documentation. It leverages AI/ML for extraction, analysis, and transformation of data from various sources (PDF, text, production documents).
+The platform offers structured insights, dedicated analytical views tailored for various crew roles (e.g., producer, director, cinematographer, production designer), interactive character relationship graphs, and tools to support production planning, risk assessment, and resource management.
 
 ---
 
 ## Key Features
 
--   Advanced ML/AI analysis (OpenAI API, potentially LangChain, embeddings via Weaviate)
-
--   Automated extraction and structuring of film scripts (PDF via `apps/worker-js`)
-
--   Asynchronous multi-stage analysis (chunking, scene analysis, graph generation) via Redis Streams
-
--   Real-time progress tracking (SSE for `apps/web`, WebSocket for `frontend/`)
-
--   Two distinct frontends: Simple PDF upload (`apps/web`) and Feature-rich dashboard (`frontend/`) with graph visualization (ReactFlow/Sigma)
-
--   Scalable architecture using microservices/workers (Node.js, Python) managed within a pnpm monorepo
-
--   Backend API Gateway (`apps/api`) using Node.js, Express, tRPC (for `apps/web`)
-
--   Graph generation using Python (`apps/worker-py`) and NetworkX
-
--   Secure file storage (MinIO/S3) and data persistence (MongoDB)
-
--   Containerized deployment (Docker)
-
----
-
-## Documentation
-
-Detailed technical documentation and analysis can be found in the `ReverseEngineering/` directory, including:
-
--   [Architecture Overview](ReverseEngineering/07_ArchitectureOverview.md)
-
--   [API Analysis](ReverseEngineering/05_APIAnalysis.md)
-
--   [Component Interaction & Data Flow](ReverseEngineering/07_ArchitectureOverview.md#component-interaction--data-flow-diagram-detailed)
-
--   [Error Analysis](ReverseEngineering/06_ErrorsAndDiagnostics.md)
-
----
-
-## Workflow Overview
-
-*(Refer to the detailed diagram in [Architecture Overview](ReverseEngineering/07_ArchitectureOverview.md#component-interaction--data-flow-diagram-detailed))* 
-
-1.  User uploads PDF script via either frontend (`apps/web` or `frontend/`).
-
-2.  API Gateway (`apps/api`) initiates the job, stores metadata in MongoDB, and publishes the initial task to Redis Stream (`RS_Chunk`).
-
-3.  JS Worker (`apps/worker-js`) consumes the chunking task, fetches the PDF from MinIO, parses/splits it, stores scenes in MongoDB, and publishes analysis tasks to Redis Stream (`RS_Analyze`).
-
-4.  JS Worker (`apps/worker-js`) consumes analysis tasks, calls OpenAI API, stores results in MongoDB and embeddings in Weaviate, and publishes progress via Redis Pub/Sub.
-
-5.  Once all scenes are analyzed, a graph generation task is published to Redis Stream (`RS_Graph`).
-
-6.  Python Worker (`apps/worker-py`) consumes the graph task, fetches data from MongoDB, builds the graph (NetworkX), generates GEXF/ZIP, uploads it to MinIO, updates MongoDB, and publishes completion via Redis Pub/Sub.
-
-7.  Frontends receive real-time updates (SSE for `apps/web`, WebSocket for `frontend/`) and display results/graphs.
+*   **Advanced AI Script Analysis:**
+    *   Utilizes OpenAI API for in-depth content analysis, including scene breakdown, character identification, dialogue extraction, and more.
+    *   Automatic extraction of key production elements: characters, locations, props, vehicles, weapons, animals, special equipment, SFX/VFX requirements.
+    *   Identification of scene mood, character interactions, and sentiment analysis between characters.
+    *   Extraction of potential production risks and elements requiring special permits or attention.
+*   **Data Structuring & Storage:**
+    *   Asynchronous, multi-stage processing pipeline (chunking, scene-by-scene analysis, graph generation) managed by Redis Streams.
+    *   Structured data stored in MongoDB (scene details, character profiles, location data, props, extracted entities, user edits).
+    *   Vector embeddings (for scenes, characters, locations) generated via OpenAI and stored in Weaviate for advanced semantic search and similarity analysis.
+    *   Original script files and generated assets (like graph exports) stored in MinIO/S3.
+*   **Interactive Frontend Dashboard (`frontend/`):**
+    *   File upload interface for PDF scripts.
+    *   Real-time progress tracking of the analysis pipeline.
+    *   **Dedicated Analytical Views:** Tailored dashboards and data presentations for different production roles:
+        *   Scene Structure & Breakdown
+        *   Character Analysis (appearances, dialogue, relationships, risk associations)
+        *   Location Summaries (scenes per location, day/night, permit needs)
+        *   Lists of Props, Vehicles, Weapons, etc.
+        *   "Difficult Scenes" view highlighting elements like children, animals, stunts, SFX.
+        *   Cinematographer's View (lighting schemes, special equipment needs per scene).
+        *   Production Risk Checklist (aggregated risks per scene).
+        *   Cross-Reference Matrices (e.g., characters vs. locations).
+        *   Production Schedule / Shooting Day Planner (initial implementation).
+        *   Director's Emotion Map (mood progression across scenes).
+        *   Production Designer's View (props/elements grouped by location/scene).
+        *   First AD's Daily Checklist (auto-generated needs for shooting days).
+        *   Overall Project Statistics Dashboard.
+    *   **Interactive Character Relationship Graph:**
+        *   Visualization of character connections, interaction strength, and sentiment using `@react-sigma/core`.
+        *   Filtering, overlays, and export capabilities (PNG, GEXF).
+    *   **Data Editing:** Ability for users to review and edit AI-extracted data, with changes saved to MongoDB.
+*   **Data Export:**
+    *   Export analytical data in various formats (JSON, CSV).
+    *   Export character relationship graphs (GEXF format, packaged in ZIP).
+*   **Scalable & Robust Architecture:**
+    *   Monorepo managed with pnpm and Turbo.
+    *   Microservices/worker architecture (Node.js, Python).
+    *   API Gateway (`apps/api`) using Node.js, Express, and tRPC for frontend communication.
+    *   Containerized deployment using Docker and Docker Compose for easy setup and scalability.
 
 ---
 
 ## Roadmap & Progress
 
-*(Based on recent activity and task lists)*
+The project is currently undergoing significant development to implement a comprehensive suite of features for film production analysis.
 
-### Core Functionality Implemented
+### Current Focus & Next Steps:
 
--   Monorepo setup with pnpm workspaces.
+*   **UI Integration & Enhancement:**
+    *   Consolidating and integrating different UI implementations (new main interface and `frontend/` directory) into a unified user experience.
+    *   Implementing the 9 core analytical sections with improved UI/UX and data presentation.
+*   **Phase 1: Extended Data Modeling & Backend Core (In Progress):**
+    *   Defining detailed MongoDB schemas and TypeScript types for all new data structures (scenes, characters with centrality, relationships, production schedules, risk checklists, etc.).
+    *   Defining Weaviate classes for `Scene`, `Character`, `Location` embeddings.
+    *   Updating AI prompts and `analyzer.ts` (in `apps/api`) for extracting and processing extended data with Zod validation.
+    *   Implementing backend API endpoints (CRUD) for data editing.
+    *   Developing logic for graph metrics calculation (e.g., character centrality).
+*   **Phase 2: Backend Logic for Views, Aggregations & Graph Serving (Upcoming):**
+    *   Implementing MongoDB aggregations for cross-reference matrices and other specialized views.
+    *   Developing algorithms for production day grouping.
+    *   Creating APIs for dedicated views (Producer's Risk Checklist, Cinematographer's View, etc.).
+    *   Implementing mood analysis logic (potentially using Weaviate similarity).
+    *   Building APIs for data export (JSON, CSV, GEXF) and graph data serving (for Sigma.js).
+*   **Phase 3: Frontend Implementation (Upcoming):**
+    *   Developing React components for all new analytical views and data editing interfaces.
+    *   Implementing the interactive character relationship graph (`RelationshipGraph.tsx` with `@react-sigma/core`), including styling, controls, overlays, and export.
+    *   Implementing UI layout suggestions (e.g., production metadata header, sticky analysis menu).
+*   **Phase 4: Comprehensive Testing, Optimization & Iteration (Upcoming):**
+    *   Manual E2E testing, performance testing (especially for graphs).
+    *   Code refactoring and optimization.
 
--   Asynchronous processing pipeline using Redis Streams (chunking, analysis, graph gen).
+### Key Milestones Achieved:
 
--   PDF upload via both frontends.
+*   Core monorepo structure and asynchronous processing pipeline (Redis Streams).
+*   PDF upload and basic analysis flow.
+*   Initial versions of `apps/api`, `apps/worker-js`, `apps/worker-py`.
+*   Basic graph generation (NetworkX) and visualization (`frontend/`).
+*   Containerization with Docker and Docker Compose.
+*   Enhanced AI interaction in `apps/api` with retry mechanisms and Zod validation.
+*   Creation of a new basic UI in the project root (React/Vite).
+*   Comprehensive update of the "Memory Bank" documentation.
 
--   Backend API Gateway (`apps/api`) with tRPC for `apps/web`.
+### Future Considerations (Post-MVP+):
 
--   JS Worker (`apps/worker-js`) for PDF parsing, OpenAI analysis, Weaviate embedding.
-
--   Python Worker (`apps/worker-py`) for graph generation (NetworkX).
-
--   Basic real-time progress updates (SSE/WebSocket).
-
--   Basic graph visualization in `frontend/`.
-
--   Containerization setup (Docker, docker-compose).
-
-### In Progress / Next Steps
-
--   Refining and stabilizing the graph visualization in `frontend/`.
-
--   Ensuring robust error handling and retry mechanisms across all workers.
-
--   Completing test coverage (unit, integration, E2E) for all components.
-
--   Standardizing API responses and WebSocket events.
-
--   Improving monitoring and logging (Prometheus, potentially LangSmith/Sentry).
-
--   Completing and unifying technical documentation.
-
--   Implementing user authentication/authorization if needed.
-
-### Planned / Future
-
--   Support for other input formats (TXT, Fountain, Final Draft).
-
--   Advanced search capabilities using Weaviate embeddings.
-
--   Automated generation of production reports.
-
--   Enhanced analysis features (risk radar, timeline visualization).
-
--   Integrations with external production tools.
-
--   Full internationalization (i18n).
+*   Support for additional input formats (DOCX, TXT, Fountain, Final Draft).
+*   Advanced semantic search using Weaviate embeddings.
+*   Automated generation of comprehensive production reports.
+*   User authentication and authorization.
+*   Full internationalization (i18n).
 
 ---
 
 ## Technologies & Architecture
 
--   **Monorepo Management:** pnpm, Turbo (likely)
-
--   **Frontend (`apps/web`):** React, TypeScript, Vite, Material UI
-
--   **Frontend (`frontend/`):** React, TypeScript, Vite, Material UI, Zustand, React Router DOM, ReactFlow, Sigma, PapaParse, Axios
-
--   **Backend API Gateway (`apps/api`):** Node.js, TypeScript, Express, tRPC
-
--   **Worker JS (`apps/worker-js`):** Node.js, TypeScript, Pino, OpenAI Client, AJV, PDF parsing utils, (LangChain inferred)
-
--   **Worker PY (`apps/worker-py`):** Python, NetworkX, LXML
-
--   **Database:** MongoDB
-
--   **Vector Database:** Weaviate
-
--   **File Storage:** MinIO / S3
-
--   **Messaging/Queueing:** Redis (Streams, Pub/Sub)
-
--   **Real-time:** Server-Sent Events (SSE), WebSockets
-
--   **AI/ML:** OpenAI API
-
--   **Containerization:** Docker, Docker Compose
-
--   **Monitoring:** Prometheus
-
--   **Testing:** Cypress (E2E/Component), Vitest (Unit)
-
--   **Code Quality:** ESLint, Prettier
+*   **Monorepo Management:** pnpm, Turbo
+*   **Languages:** TypeScript (primary), Python
+*   **Frontend (`frontend/` - Main Dashboard):**
+    *   React, Vite, Material UI (MUI)
+    *   Zustand (state management)
+    *   React Router DOM (routing)
+    *   `@react-sigma/core` (interactive graph visualization)
+    *   Axios, PapaParse
+    *   Potentially: `react-big-calendar`, `Recharts`
+*   **Backend API Gateway (`apps/api`):**
+    *   Node.js, Express, tRPC
+    *   OpenAI Client, Zod (validation)
+    *   `ws` (WebSockets)
+    *   Pino (logging)
+    *   Clients for Redis, MongoDB, MinIO, Weaviate
+    *   `graphology`, `graphology-metrics`, `graphology-gexf` (server-side graph processing)
+*   **JS Worker (`apps/worker-js`):**
+    *   Node.js, TypeScript
+    *   OpenAI Client, Zod (validation, replacing AJV)
+    *   `pdf-parse` (or similar for PDF processing)
+    *   Clients for Redis, MongoDB, MinIO, Weaviate
+*   **Python Worker (`apps/worker-py` - potentially to be phased out or refocused):**
+    *   Python
+    *   NetworkX, LXML (if GEXF generation remains here)
+*   **Databases & Storage:**
+    *   **MongoDB:** Primary database for structured analytical data, metadata, user edits.
+    *   **Weaviate:** Vector database for OpenAI embeddings (scenes, characters, locations).
+    *   **Redis:** Message broker (Streams for task queuing) and Pub/Sub.
+    *   **MinIO/S3:** Object storage for PDF files and generated graph exports.
+*   **AI/ML:** OpenAI API (GPT models for text analysis & embeddings)
+*   **Shared Packages (`packages/*`):** TypeScript types, utility functions, AI prompts, Zod schemas.
+*   **Containerization:** Docker, Docker Compose
+*   **Code Quality:** ESLint, Prettier
+*   **Testing:** Vitest (unit/integration), Cypress (E2E/component)
+*   **Monitoring:** Prometheus (initial setup), Grafana (planned), LangSmith/Sentry (considered)
 
 ---
 
 ## Quick Start
 
-1.  Ensure Docker, Docker Compose, Node.js (check version), and pnpm are installed.
-
-2.  Clone the repository:
+1.  **Prerequisites:**
+    *   Docker & Docker Compose
+    *   Node.js (refer to `.nvmrc` or project settings for version)
+    *   pnpm ( `npm install -g pnpm` )
+2.  **Clone the repository:**
     ```bash
-    git clone <repository_url>
-    cd <repository_directory>
+    git clone <your-repository-url>
+    cd site2data
     ```
-
-3.  Install dependencies from the root directory:
+3.  **Install dependencies:**
+    (From the project root directory)
     ```bash
     pnpm install
     ```
-
-4.  Configure environment variables:
-    ```bash
-    cp .env.example .env
-    # Edit .env with your API keys (OpenAI), MinIO credentials, etc.
-    ```
-
-5.  Build necessary packages/apps (if needed, check `turbo.json`):
+4.  **Configure Environment Variables:**
+    *   Copy the example environment file:
+        ```bash
+        cp .env.example .env
+        ```
+    *   Edit the `.env` file in the project root and provide all necessary credentials and configurations (OpenAI API Key, MinIO details, etc.).
+5.  **Build packages (if necessary, managed by Turbo):**
     ```bash
     pnpm turbo build
     ```
-
-6.  Run the entire stack using Docker Compose:
+6.  **Run the application stack:**
+    (From the project root directory)
     ```bash
-    docker compose up --build
+    docker compose up --build -d
     ```
+    *(Use `-d` to run in detached mode. View logs with `docker compose logs -f <service_name>` e.g., `docker compose logs -f api`)*
+7.  **Access the Frontend:**
+    *   The main frontend application (`frontend/`) should be accessible at: `http://localhost:5173` (verify port in `docker-compose.yml` or Vite config if changed).
+    *   The new basic UI (if still separately served during development) might be on `http://localhost:3005`.
 
-7.  Access the frontends:
-    -   Simple (`apps/web`): Likely served by `apps/api` (check `docker-compose.yml` or API logs for port, e.g., http://localhost:8000)
-
-    -   Rich (`frontend/`): Check `docker-compose.yml` (e.g., http://localhost:5173)
-
-*Note: Refer to `docker-compose.yml` for specific service names, ports, and dependencies.* 
+*Note: Consult `docker-compose.yml` for specific service names, exposed ports, and environment variable overrides.*
 
 ---
 
-## Testing
+## Contributing
 
--   Run all tests (check `package.json` scripts, likely using Turbo):
-    ```bash
-    pnpm turbo test
-    ```
-
--   Run specific package tests (e.g., for `frontend/`):
-    ```bash
-    pnpm --filter frontend test
-    ```
-
--   Run linters/formatters:
-    ```bash
-    pnpm turbo lint
-    # or specific package: pnpm --filter <package_name> lint
-    ```
-
--   E2E tests likely use Cypress (check `package.json` scripts).
-
----
-
-## Development & Contribution
-
--   Follow standard Git workflow (feature branches, PRs).
-
--   Ensure code quality (linting, formatting, types).
-
--   Add tests for new features/fixes.
-
--   Update relevant documentation in `ReverseEngineering/` or other appropriate locations.
+Details on contributing, coding standards, and submitting pull requests will be provided in a `CONTRIBUTING.md` file (to be created).
 
 ---
 
@@ -236,21 +190,12 @@ Detailed technical documentation and analysis can be found in the `ReverseEngine
 
 -   The primary API gateway is `apps/api`. It uses tRPC for communication with `apps/web`.
 
--   Other REST endpoints or WebSocket communication might be used by `frontend/`. Refer to `ReverseEngineering/05_APIAnalysis.md` and the specific application code (`apps/api/src`, `frontend/src`) for details.
-
----
-
-## System Architecture
-
-The system utilizes a monorepo structure housing multiple applications and shared packages. Core components include two frontends, an API gateway, and two background workers communicating via Redis. See [Architecture Overview](ReverseEngineering/07_ArchitectureOverview.md) for a detailed description and diagram.
-
 ---
 
 ## Contact & Support
 
 -   Open an Issue on the GitHub repository.
 
--   Refer to documentation in the `ReverseEngineering/` directory.
 
 -   Contact the development team.
 

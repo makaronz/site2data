@@ -36,7 +36,7 @@ async function connectToRedis(): Promise<void> {
   client = createClient({
     url: REDIS_URL,
     socket: {
-      reconnectStrategy: (retries) => {
+      reconnectStrategy: (retries: number) => {
         if (retries > 10) {
           logger.error('Too many Redis connection retries, failing.');
           return new Error('Too many retries.');
@@ -46,7 +46,7 @@ async function connectToRedis(): Promise<void> {
     },
   });
 
-  client.on('error', (err) => logger.error('Redis Client Error', err));
+  client.on('error', (err: Error) => logger.error('Redis Client Error', err));
   client.on('connect', () => logger.info('Redis client is connecting...'));
   client.on('ready', () => {
     logger.info('Redis client ready.');
@@ -61,13 +61,13 @@ async function connectToRedis(): Promise<void> {
   connectPromise = client.connect().then(() => {
     logger.info('Redis client connected successfully.');
     isConnected = true;
-  }).catch((err) => {
+  }).catch((err: Error) => {
     logger.error('Failed to connect to Redis:', err);
     connectPromise = null; // Reset promise on failure
     throw err; // Re-throw to indicate connection failure
   });
 
-  return connectPromise;
+  return connectPromise as Promise<void>;
 }
 
 export async function ensureStreamAndGroup(stream: string, group: string, consumerId: string) {
@@ -179,4 +179,4 @@ async function initializeRedisStreams(client: RedisClientType<RedisModules, Redi
   }
 }
 
-initializeRedisStreams(redisClient); 
+// initializeRedisStreams(redisClient); // Zakomentowano lub usunięto tę linię 

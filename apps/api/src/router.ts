@@ -200,7 +200,7 @@ export const appRouter = router({
             'jobId', jobId,
             'objectKey', input.objectKey,
           ];
-          await redisClient.xadd(STREAM_PDF_CHUNKS, '*', ...streamMessage);
+          await redisClient.xAdd(STREAM_PDF_CHUNKS, '*', ...streamMessage);
           console.log(`Published job ${jobId} to stream ${STREAM_PDF_CHUNKS}.`);
         } catch (redisError) {
           // If Redis publish fails after successful DB insert, attempt to clean up the job document
