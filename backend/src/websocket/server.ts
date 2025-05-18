@@ -2,11 +2,15 @@ import { WebSocketServer, WebSocket } from 'ws';
 import { Server } from 'http';
 import { scriptAnalysisService } from '../services/scriptAnalysis';
 import { WebSocketMessage, WebSocketAuthPayload } from 'shared-types';
-import { validationSchemas } from '../middleware/validation';
+import { validationSchemas, validateAuthToken } from '../middleware/validation';
 
 export class WebSocketManager {
   private wss: WebSocketServer;
-  private clients: Map<WebSocket, { authenticated: boolean, sessionId?: string }> = new Map();
+  private clients: Map<WebSocket, { 
+    authenticated: boolean, 
+    sessionId?: string,
+    tokenExpiresAt?: number 
+  }> = new Map();
   
   constructor(server: Server) {
     this.wss = new WebSocketServer({ server, path: '/ws/script-analysis' });
@@ -25,29 +29,41 @@ export class WebSocketManager {
               // Validate authentication payload using Zod schema
               const authPayload = validationSchemas.websocketAuth.parse(data as unknown as WebSocketAuthPayload);
               
-              if (this.validateToken(authPayload.token)) {
+              // Validate token against token store or auth service
+              const tokenValidation = validateAuthToken(authPayload.token);
+              
+              if (tokenValidation.valid) {
                 this.clients.set(ws, { 
                   authenticated: true, 
-                  sessionId: authPayload.sessionId 
+                  sessionId: authPayload.sessionId,
+                  tokenExpiresAt: tokenValidation.expiresAt
                 });
                 
                 ws.send(JSON.stringify({
                   type: 'PROGRESS',
-                  message: 'Authentication successful'
+                  message: 'Authentication successful',
+                  expiresAt: tokenValidation.expiresAt
                 }));
                 return;
               } else {
                 ws.send(JSON.stringify({
                   type: 'ERROR',
-                  message: 'Authentication failed'
+                  message: `Authentication failed: ${tokenValidation.error || 'Invalid token'}`,
+                  expired: tokenValidation.expired
                 }));
                 ws.close();
                 return;
               }
             } catch (validationError) {
+              // Include detailed validation error information
+              const errorMessage = validationError instanceof Error 
+                ? validationError.message 
+                : 'Schema validation failed';
+                
               ws.send(JSON.stringify({
                 type: 'ERROR',
-                message: 'Invalid authentication data'
+                message: `Invalid authentication data: ${errorMessage}`,
+                code: 'VALIDATION_ERROR'
               }));
               ws.close();
               return;
@@ -59,7 +75,20 @@ export class WebSocketManager {
           if (!clientInfo || !clientInfo.authenticated) {
             ws.send(JSON.stringify({
               type: 'ERROR',
-              message: 'Not authenticated'
+              message: 'Not authenticated',
+              code: 'AUTHENTICATION_REQUIRED'
+            }));
+            ws.close();
+            return;
+          }
+          
+          // Check token expiration if available
+          if (clientInfo.tokenExpiresAt && clientInfo.tokenExpiresAt < Date.now()) {
+            ws.send(JSON.stringify({
+              type: 'ERROR',
+              message: 'Authentication token has expired',
+              code: 'TOKEN_EXPIRED',
+              expired: true
             }));
             ws.close();
             return;
@@ -69,7 +98,9 @@ export class WebSocketManager {
             // Send initial progress update
             ws.send(JSON.stringify({
               type: 'PROGRESS',
-              message: 'Starting analysis...'
+              message: 'Starting analysis...',
+              stage: 'initialization',
+              progress: 0
             }));
             
             try {
@@ -85,7 +116,8 @@ export class WebSocketManager {
               console.error('Error during script analysis:', error);
               ws.send(JSON.stringify({
                 type: 'ERROR',
-                message: error instanceof Error ? error.message : 'Unknown error during analysis'
+                message: error instanceof Error ? error.message : 'Unknown error during analysis',
+                code: 'ANALYSIS_ERROR'
               }));
             }
           }
@@ -93,7 +125,8 @@ export class WebSocketManager {
           console.error('Error processing WebSocket message:', error);
           ws.send(JSON.stringify({
             type: 'ERROR',
-            message: 'Error processing request'
+            message: 'Error processing request: Invalid message format',
+            code: 'INVALID_MESSAGE'
           }));
         }
       });
@@ -108,12 +141,24 @@ export class WebSocketManager {
         this.clients.delete(ws);
       });
     });
-  }
-  
-  private validateToken(token: string): boolean {
-    // In a real implementation, this would validate against a token store
-    // For now, we'll accept any non-empty token
-    return !!token && token.length > 10;
+    
+    // Periodically check for expired tokens
+    setInterval(() => {
+      const now = Date.now();
+      this.clients.forEach((clientInfo, client) => {
+        if (clientInfo.authenticated && 
+            clientInfo.tokenExpiresAt && 
+            clientInfo.tokenExpiresAt < now) {
+          client.send(JSON.stringify({
+            type: 'ERROR',
+            message: 'Authentication token has expired',
+            code: 'TOKEN_EXPIRED',
+            expired: true
+          }));
+          client.close();
+        }
+      });
+    }, 60000); // Check every minute
   }
   
   public broadcast(message: string): void {
