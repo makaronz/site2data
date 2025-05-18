@@ -42,11 +42,24 @@ const storage = multer.diskStorage({
   }
 });
 
+// Filtr plików dla multer - akceptuje tylko PDF i TXT
+const fileFilter = (req: express.Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+  // Sprawdź mimetype pliku
+  if (file.mimetype === 'application/pdf' || file.mimetype === 'text/plain') {
+    // Akceptuj plik
+    cb(null, true);
+  } else {
+    // Odrzuć plik
+    cb(new Error('Tylko pliki PDF i TXT są dozwolone'));
+  }
+};
+
 const upload = multer({ 
   storage,
   limits: {
     fileSize: 10 * 1024 * 1024 // 10MB limit
-  }
+  },
+  fileFilter // Dodanie filtra plików
 });
 
 const router: Router = Router();
