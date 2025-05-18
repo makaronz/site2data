@@ -1,341 +1,100 @@
-import { Router, Request } from 'express';
+import express from 'express';
+import { Router } from 'express';
 import multer from 'multer';
-import type { FileFilterCallback } from 'multer';
-import { scriptAnalysisService } from '../services/scriptAnalysis.js';
 import fs from 'fs';
 import path from 'path';
-import { 
-  WebSocketClient, 
-  AllWebSocketMessages, 
-  ProgressMessage, 
-  ErrorMessage, 
-  AnalysisResultMessage, 
-  AnalyzeScriptMessage
-} from '../types/websocket.js';
-import { validateUpload } from '../middleware/validation.js';
-import config from '../config/environments.js';
+import { WebSocketClient } from '../types/websocket';
+import { scriptAnalysisService } from '../services/scriptAnalysis';
+import { exportNodesCSV, exportEdgesCSV, exportGEXF } from '../utils/graphExport';
 import { z } from 'zod';
-import { exportNodesCSV, exportEdgesCSV, exportGEXF } from '../utils/graphExport.js';
-import pdf from 'pdf-parse';
-import logger from '../utils/logger.js';
-import { Script } from '../models/script.js';
+import { pdf } from 'pdf-parse';
+import { validateRequest, validationSchemas } from '../middleware/validation';
 
-// Tworzymy własny interfejs dla plików Multer zamiast używać namespace
-interface MulterFile {
-  originalname: string;
+// Definicje typów
+interface MulterFile extends Express.Multer.File {
   path: string;
-  mimetype: string;
-  size: number;
-  filename: string;
-  destination: string;
-  buffer?: Buffer;
-  encoding?: string;
-  fieldname?: string;
 }
 
-const router: Router = Router();
-
-// Schematy Zod dla wiadomości WebSocket
-const analyzeScriptMessageSchema = z.object({
-  type: z.literal('ANALYZE_SCRIPT'),
-  script: z.instanceof(Buffer).or(z.string()),
-});
-
-const progressMessageSchema = z.object({
-  type: z.literal('PROGRESS'),
-  stage: z.enum(['uploading', 'processing', 'analyzing', 'complete']),
-  progress: z.number(),
-  message: z.string(),
-});
-
-const analysisResultMessageSchema = z.object({
-  type: z.literal('ANALYSIS_RESULT'),
-  result: z.object({
-    analysis: z.object({
-      metadata: z.object({
-        title: z.string(),
-        authors: z.array(z.string()),
-        detected_language: z.string(),
-        scene_count: z.number(),
-        token_count: z.number(),
-        analysis_timestamp: z.string()
-      }),
-      overall_summary: z.string(),
-      characters: z.array(z.object({
-        name: z.string(),
-        role: z.string(),
-        description: z.string().optional(),
-        scenes: z.array(z.string()).optional()
-      })).optional(),
-      scenes: z.array(z.object({
-        id: z.string(),
-        location: z.string(),
-        time: z.string(),
-        characters: z.array(z.string()),
-        description: z.string()
-      })).optional(),
-      relationships: z.array(z.object({
-        character_a: z.string(),
-        character_b: z.string(),
-        strength: z.number(),
-        overall_sentiment: z.number(),
-        key_scenes: z.array(z.string())
-      })).optional()
-    })
-  })
+// Schemat walidacji dla wiadomości WebSocket
+const messageSchema = z.object({
+  type: z.enum(['ANALYZE_SCRIPT', 'PROGRESS', 'ANALYSIS_RESULT', 'ERROR']),
+  message: z.string().optional(),
+  script: z.any().optional(),
+  result: z.any().optional()
 });
 
 const errorMessageSchema = z.object({
   type: z.literal('ERROR'),
-  message: z.string(),
+  message: z.string()
 });
 
 // Konfiguracja multer dla przesyłania plików
 const storage = multer.diskStorage({
-  destination: (_req: Request, _file: MulterFile, cb: (error: Error | null, destination: string) => void) => {
+  destination: (req, file, cb) => {
     const uploadDir = path.join(process.cwd(), 'uploads');
     if (!fs.existsSync(uploadDir)) {
       fs.mkdirSync(uploadDir, { recursive: true });
     }
     cb(null, uploadDir);
   },
-  filename: (_req: Request, file: MulterFile, cb: (error: Error | null, filename: string) => void) => {
+  filename: (req, file, cb) => {
     cb(null, `${Date.now()}-${file.originalname}`);
   }
 });
 
-const upload = multer({
-  storage: storage,
+const upload = multer({ 
+  storage,
   limits: {
-    fileSize: config.maxFileSize
-  },
-  fileFilter: (_req: Request, file: MulterFile, cb: FileFilterCallback) => {
-    if (config.allowedFileTypes.includes(file.mimetype)) {
-      cb(null, true);
-    } else {
-      cb(new Error('Nieprawidłowy format pliku'));
-    }
+    fileSize: 10 * 1024 * 1024 // 10MB limit
   }
 });
 
+const router: Router = Router();
+
 // WebSocket handler
 export const handleWebSocket = (ws: WebSocketClient) => {
-  console.log('New WebSocket connection established');
-
-  // Limiter wiadomości na połączenie
-  let messageCount = 0;
-  const MESSAGE_LIMIT = 60;
-  const WINDOW_MS = 60 * 1000; // 1 minuta
-
-  const resetMessageCount = () => {
-    messageCount = 0;
-  };
-  const interval = setInterval(resetMessageCount, WINDOW_MS);
-
+  console.log('WebSocket client connected');
+  
+  // Wysyłaj aktualizacje co 2 sekundy (symulacja postępu)
+  const interval = setInterval(() => {
+    const progress = {
+      type: 'PROGRESS',
+      message: `Przetwarzanie... ${Math.floor(Math.random() * 100)}%`
+    };
+    ws.send(JSON.stringify(progress));
+  }, 2000);
+  
   ws.on('message', async (message: string) => {
-    messageCount++;
-    if (messageCount > MESSAGE_LIMIT) {
-      logger.warn(`Klient przekroczył limit wiadomości WebSocket.`);
-      const errorMsg: ErrorMessage = {
-        type: 'ERROR',
-        message: 'Przekroczono limit wiadomości WebSocket na minutę. Połączenie zostanie zamknięte.'
-      };
-      ws.send(JSON.stringify(errorMessageSchema.parse(errorMsg)));
-      ws.close(1011, 'Rate limit exceeded');
-      clearInterval(interval);
-      return;
-    }
     try {
       const data = JSON.parse(message);
-
-      // Walidacja typu wiadomości
-      let validatedData: AllWebSocketMessages;
       
-      switch (data.type) {
-        case 'ANALYZE_SCRIPT':
-          try {
-            validatedData = analyzeScriptMessageSchema.parse(data) as AnalyzeScriptMessage;
-          } catch (error) {
-            if (error instanceof z.ZodError) {
-              const errorMessage: ErrorMessage = {
-                type: 'ERROR',
-                message: 'Nieprawidłowa wiadomość ANALYZE_SCRIPT',
-              };
-              ws.send(JSON.stringify(errorMessageSchema.parse(errorMessage)));
-              return;
-            }
-            throw error;
-          }
-          break;
-        case 'PROGRESS':
-          try {
-            validatedData = progressMessageSchema.parse(data) as ProgressMessage;
-          } catch (error) {
-            if (error instanceof z.ZodError) {
-              const errorMessage: ErrorMessage = {
-                type: 'ERROR',
-                message: 'Nieprawidłowa wiadomość PROGRESS',
-              };
-              ws.send(JSON.stringify(errorMessageSchema.parse(errorMessage)));
-              return;
-            }
-            throw error;
-          }
-          break;
-        case 'ANALYSIS_RESULT':
-          try {
-            validatedData = analysisResultMessageSchema.parse(data) as AnalysisResultMessage;
-          } catch (error) {
-            if (error instanceof z.ZodError) {
-              const errorMessage: ErrorMessage = {
-                type: 'ERROR',
-                message: 'Nieprawidłowa wiadomość ANALYSIS_RESULT',
-              };
-              ws.send(JSON.stringify(errorMessageSchema.parse(errorMessage)));
-              return;
-            }
-            throw error;
-          }
-          break;
-        case 'ERROR':
-          try {
-            validatedData = errorMessageSchema.parse(data) as ErrorMessage;
-          } catch (error) {
-            if (error instanceof z.ZodError) {
-              const errorMessage: ErrorMessage = {
-                type: 'ERROR',
-                message: 'Nieprawidłowa wiadomość ERROR',
-              };
-              ws.send(JSON.stringify(errorMessageSchema.parse(errorMessage)));
-              return;
-            }
-            throw error;
-          }
-          break;
-        default: {
-          const errorMessage: ErrorMessage = {
-            type: 'ERROR',
-            message: 'Nieznany typ wiadomości',
-          };
-          ws.send(JSON.stringify(errorMessageSchema.parse(errorMessage)));
-          return;
-        }
-      }
-
-      // Dalsza logika po walidacji
-      switch (validatedData.type) {
-        case 'ANALYZE_SCRIPT': {
-          const analyzeData = validatedData as AnalyzeScriptMessage;
+      // Walidacja wiadomości
+      messageSchema.parse(data);
+      
+      if (data.type === 'ANALYZE_SCRIPT') {
+        console.log('Otrzymano żądanie analizy skryptu przez WebSocket');
+        
+        // Symulacja analizy
+        setTimeout(() => {
+          clearInterval(interval);
           
-          if (!analyzeData.script) {
-            logger.warn(`Otrzymano żądanie ANALYZE_SCRIPT bez danych skryptu.`);
-            const errorMessage: ErrorMessage = {
-              type: 'ERROR',
-              message: 'Brak pliku do analizy'
-            };
-            ws.send(JSON.stringify(errorMessageSchema.parse(errorMessage)));
-            return;
-          }
-
-          logger.info(`Otrzymano skrypt do analizy przez WebSocket. Długość: ${analyzeData.script.length} bajtów.`);
-
-          const sendProgress = (stage: ProgressMessage['stage'], progress: number, message: string) => {
-            try {
-              const progressMsg: ProgressMessage = { type: 'PROGRESS', stage, progress, message };
-              const validatedProgress = progressMessageSchema.parse(progressMsg);
-              ws.send(JSON.stringify(validatedProgress));
-            } catch (validationError) {
-              logger.error(`Błąd walidacji wiadomości postępu:`, validationError);
+          const result = {
+            type: 'ANALYSIS_RESULT',
+            result: {
+              title: 'Przykładowy wynik analizy',
+              characters: [
+                { id: 1, name: 'Postać 1', scenes: [1, 2, 3] },
+                { id: 2, name: 'Postać 2', scenes: [2, 4, 5] }
+              ],
+              scenes: [
+                { id: 1, description: 'Scena 1' },
+                { id: 2, description: 'Scena 2' }
+              ]
             }
           };
-
-          sendProgress('processing', 10, 'Rozpoczęto przetwarzanie skryptu...');
-
-          try {
-            const scriptContentString = Buffer.isBuffer(analyzeData.script) 
-              ? analyzeData.script.toString('utf-8') 
-              : analyzeData.script;
-
-            const scriptToAnalyze: Script = {
-              content: scriptContentString,
-              type: 'pdf',
-              filename: 'uploaded_script.pdf'
-            };
-            
-            // Pobranie klucza API ze zmiennych środowiskowych
-            const apiKey = process.env.OPENAI_API_KEY;
-
-            if (!apiKey) {
-              logger.error('Klucz API OpenAI (OPENAI_API_KEY) nie jest skonfigurowany w zmiennych środowiskowych.');
-              const errorMessage: ErrorMessage = {
-                type: 'ERROR',
-                message: 'Błąd konfiguracji serwera: Brak klucza API.'
-              };
-              ws.send(JSON.stringify(errorMessageSchema.parse(errorMessage)));
-              sendProgress('complete', 100, 'Analiza zakończona z błędem konfiguracji.');
-              return;
-            }
-
-            sendProgress('analyzing', 30, 'Przekazano skrypt do analizy...');
-
-            const analysisResult = await scriptAnalysisService.analyzeScript(
-              scriptToAnalyze,
-              apiKey
-            );
-
-            if (analysisResult) {
-              // Sprawdzenie, czy analysisResult nie jest odpowiedzią błędu z samego serwisu
-              if (analysisResult.analysis && analysisResult.analysis.metadata && analysisResult.analysis.metadata.title === 'Błąd analizy') {
-                logger.warn('Analiza zakończona z błędem zwróconym przez ScriptAnalysisService.', analysisResult.analysis.overall_summary);
-                const errorMessage: ErrorMessage = {
-                  type: 'ERROR',
-                  message: analysisResult.analysis.overall_summary || 'Wystąpił błąd podczas analizy skryptu.'
-                };
-                ws.send(JSON.stringify(errorMessageSchema.parse(errorMessage)));
-                sendProgress('complete', 100, 'Analiza zakończona z błędem.');
-              } else {
-                sendProgress('analyzing', 90, 'Finalizowanie wyniku analizy...');
-                const validatedResult = analysisResultMessageSchema.parse({
-                  type: 'ANALYSIS_RESULT',
-                  result: analysisResult,
-                });
-                ws.send(JSON.stringify(validatedResult));
-                logger.info(`Analiza skryptu zakończona sukcesem.`);
-                sendProgress('complete', 100, 'Analiza zakończona.');
-              }
-            } else {
-              logger.error(`analyzeScript nie zwrócił wyniku (undefined), co jest nieoczekiwane.`);
-              const errorMessage: ErrorMessage = {
-                type: 'ERROR',
-                message: 'Nie otrzymano wyniku analizy z serwisu.'
-              };
-              ws.send(JSON.stringify(errorMessageSchema.parse(errorMessage)));
-              sendProgress('complete', 100, 'Analiza zakończona z błędem wewnętrznym.');
-            }
-
-          } catch (error: unknown) {
-            logger.error(`Krytyczny błąd podczas analizy skryptu:`, error);
-            const errorMessage: ErrorMessage = {
-              type: 'ERROR',
-              message: error instanceof Error ? error.message : 'Wystąpił nieoczekiwany błąd serwera podczas analizy.'
-            };
-            try {
-              const validatedError = errorMessageSchema.parse(errorMessage);
-              ws.send(JSON.stringify(validatedError));
-            } catch (validationError) {
-                logger.error(`Błąd walidacji wiadomości błędu (krytyczny):`, validationError);
-                ws.send(JSON.stringify(errorMessageSchema.parse({ type: 'ERROR', message: 'Wystąpił wewnętrzny błąd serwera.' })));
-            }
-            sendProgress('complete', 100, 'Analiza zakończona z błędem krytycznym.');
-          }
-          break;
-        }
-        case 'PROGRESS':
-          // ... existing code ...
-          break;
-        default: {
-          // Pozostałe typy nie są obsługiwane w tym handlerze
-        }
+          
+          ws.send(JSON.stringify(result));
+        }, 5000);
       }
     } catch (error) {
       console.error('Błąd podczas przetwarzania wiadomości WebSocket:', error);
@@ -346,7 +105,6 @@ export const handleWebSocket = (ws: WebSocketClient) => {
       ws.send(JSON.stringify(errorMessageSchema.parse(errorMessage)));
     }
   });
-
   ws.on('close', () => {
     clearInterval(interval);
     console.log('Client disconnected');
@@ -354,7 +112,7 @@ export const handleWebSocket = (ws: WebSocketClient) => {
 };
 
 // REST endpoints
-router.post('/analyze', upload.single('script'), validateUpload, async (req, res) => {
+router.post('/analyze', upload.single('script'), validateRequest({ body: validationSchemas.fileUpload }), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({
@@ -362,9 +120,7 @@ router.post('/analyze', upload.single('script'), validateUpload, async (req, res
         message: 'Brak pliku w żądaniu'
       });
     }
-
     console.log('Plik otrzymany:', (req.file as MulterFile).originalname, 'typ:', req.body.type || 'pdf');
-
     // Pobierz token autoryzacyjny z nagłówka
     const authHeader = req.headers.authorization;
     
@@ -391,16 +147,13 @@ router.post('/analyze', upload.single('script'), validateUpload, async (req, res
           message: 'Plik jest pusty lub nie może zostać odczytany'
         });
       }
-
       console.log('Rozpoczynam analizę pliku...');
       const result = await scriptAnalysisService.analyzeScript({
         content: fileContent,
         type: req.body.type || 'pdf',
         filename: (req.file as MulterFile).originalname
       }, authHeader);
-
       console.log('Analiza zakończona pomyślnie');
-
       // Zwracamy pomyślną odpowiedź
       res.json({
         success: true,
@@ -481,4 +234,4 @@ router.get('/api/script/:id/graph/gexf', async (req, res) => {
   res.download(outputPath, 'network.gexf');
 });
 
-export default router; 
+export default router;

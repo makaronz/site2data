@@ -2,6 +2,7 @@ import { WebSocketServer, WebSocket } from 'ws';
 import { Server } from 'http';
 import { scriptAnalysisService } from '../services/scriptAnalysis';
 import { WebSocketMessage, WebSocketAuthPayload } from 'shared-types';
+import { validationSchemas } from '../middleware/validation';
 
 export class WebSocketManager {
   private wss: WebSocketServer;
@@ -20,22 +21,33 @@ export class WebSocketManager {
           
           // Handle authentication
           if (data.type === 'AUTH') {
-            const authPayload = data as unknown as WebSocketAuthPayload;
-            if (this.validateToken(authPayload.token)) {
-              this.clients.set(ws, { 
-                authenticated: true, 
-                sessionId: authPayload.sessionId 
-              });
+            try {
+              // Validate authentication payload using Zod schema
+              const authPayload = validationSchemas.websocketAuth.parse(data as unknown as WebSocketAuthPayload);
               
-              ws.send(JSON.stringify({
-                type: 'PROGRESS',
-                message: 'Authentication successful'
-              }));
-              return;
-            } else {
+              if (this.validateToken(authPayload.token)) {
+                this.clients.set(ws, { 
+                  authenticated: true, 
+                  sessionId: authPayload.sessionId 
+                });
+                
+                ws.send(JSON.stringify({
+                  type: 'PROGRESS',
+                  message: 'Authentication successful'
+                }));
+                return;
+              } else {
+                ws.send(JSON.stringify({
+                  type: 'ERROR',
+                  message: 'Authentication failed'
+                }));
+                ws.close();
+                return;
+              }
+            } catch (validationError) {
               ws.send(JSON.stringify({
                 type: 'ERROR',
-                message: 'Authentication failed'
+                message: 'Invalid authentication data'
               }));
               ws.close();
               return;

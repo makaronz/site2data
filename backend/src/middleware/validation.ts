@@ -1,5 +1,5 @@
-import { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
+import { WebSocketAuthPayload } from 'shared-types';
 
 /**
  * Middleware for validating request data against Zod schemas
@@ -71,5 +71,11 @@ export const validationSchemas = {
   // ID parameter
   id: z.object({
     id: z.string().uuid()
-  })
+  }),
+  
+  // WebSocket authentication validation
+  websocketAuth: z.object({
+    token: z.string().min(10),
+    sessionId: z.string().optional()
+  }) satisfies z.ZodType<WebSocketAuthPayload>
 };
