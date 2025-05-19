@@ -2,15 +2,17 @@ import logging
 import os
 from logging.handlers import RotatingFileHandler
 
-def setup_logging(app_name: str = "site2data") -> logging.Logger:
+def setup_logging(app_name: str = "ai-cinehub") -> logging.Logger:
     """
-    Konfiguruje system logowania dla aplikacji.
+    Configures and returns a logger for the application.
+    
+    Creates a logger with file rotation for both general and error logs, storing them in a "logs" directory. In development environments, also outputs logs to the console.
     
     Args:
-        app_name: Nazwa aplikacji używana w logach
-        
+        app_name: The name of the application used for naming log files.
+    
     Returns:
-        Skonfigurowany logger
+        A configured logger instance for the application.
     """
     # Utwórz katalog na logi jeśli nie istnieje
     log_dir = "logs"

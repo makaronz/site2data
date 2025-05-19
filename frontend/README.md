@@ -1,10 +1,10 @@
-# Site2Data Frontend
+# ai_CineHub Frontend
 
 ---
 
 ## Purpose
 
-This is the React frontend for Site2Data – a platform for filmmakers to analyze film scripts and production documentation using AI/ML.
+This is the React frontend for ai_CineHub – a platform for filmmakers to analyze film scripts and production documentation using AI/ML.
 
 ---
 

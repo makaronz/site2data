@@ -5,7 +5,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017';
-const DB_NAME = 'site2data'; // Or get from env
+const DB_NAME = 'ai-cinehub'; // Or get from env
 const JOBS_COLLECTION = 'jobs';
 const SCENES_COLLECTION = 'scenes';
 

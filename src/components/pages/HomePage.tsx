@@ -16,7 +16,7 @@ const HomePage: React.FC = () => {
   return (
     <Box sx={{ mt: 4 }}>
       <Typography variant="h4" component="h1" gutterBottom>
-        Site2Data
+        ai_CineHub
       </Typography>
       
       <Typography variant="body1" paragraph sx={{ mb: 4 }}>
@@ -92,7 +92,7 @@ const HomePage: React.FC = () => {
           O Projekcie
         </Typography>
         <Typography variant="body2" color="text.secondary">
-          Site2Data to narzędzie do analizy scenariuszy, które wykorzystuje zaawansowane 
+          ai_CineHub to narzędzie do analizy scenariuszy, które wykorzystuje zaawansowane 
           algorytmy przetwarzania języka naturalnego do ekstrakcji danych z plików tekstowych.
           Aplikacja dostarcza szczegółową analizę postaci, scen, dialogów, lokalizacji i wielu innych
           elementów, które są kluczowe dla zrozumienia struktury i dynamiki scenariusza.

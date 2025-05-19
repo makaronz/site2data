@@ -1,8 +1,8 @@
 {
-  "name": "site2data-backend",
+  "name": "ai-cinehub-backend",
   "version": "1.0.0",
   "type": "module",
-  "description": "Backend for site2data application",
+  "description": "Backend for ai-cinehub application",
   "main": "src/index.ts",
   "scripts": {
     "start": "node --experimental-specifier-resolution=node --experimental-json-modules dist/index.js",

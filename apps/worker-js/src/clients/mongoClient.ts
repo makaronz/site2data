@@ -6,12 +6,12 @@ import { Logger } from 'pino';
 dotenv.config();
 
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017';
-// const DB_NAME = 'site2data'; // Hardcoded in audit, but recommendation was to use env var
+// const DB_NAME = 'ai-cinehub'; // Hardcoded in audit, but recommendation was to use env var
 // const JOBS_COLLECTION = 'jobs'; // Hardcoded in audit
 // const SCENES_COLLECTION = 'scenes'; // Hardcoded in audit
 
 // Using environment variables as per audit recommendations for flexibility
-const DB_NAME = process.env.MONGO_DB_NAME || "site2data";
+const DB_NAME = process.env.MONGO_DB_NAME || "ai-cinehub";
 const JOBS_COLLECTION_NAME = process.env.MONGO_JOBS_COLLECTION || "jobs";
 const SCENES_COLLECTION_NAME = process.env.MONGO_SCENES_COLLECTION || "scenes";
 

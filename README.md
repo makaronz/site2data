@@ -1,6 +1,6 @@
-# Site2Data
+# ai_CineHub
 
-**Site2Data is an advanced, AI-powered platform designed for filmmakers and production teams to deeply analyze film scripts and streamline pre-production workflows. It leverages Large Language Models (OpenAI) to automatically extract, structure, and analyze vast amounts of data from screenplays (initially PDFs, with future support for other formats).**
+**ai_CineHub is an advanced, AI-powered platform designed for filmmakers and production teams to deeply analyze film scripts and streamline pre-production workflows. It leverages Large Language Models (OpenAI) to automatically extract, structure, and analyze vast amounts of data from screenplays (initially PDFs, with future support for other formats).**
 
 The platform offers structured insights, dedicated analytical views tailored for various crew roles (e.g., producer, director, cinematographer, production designer), interactive character relationship graphs, and tools to support production planning, risk assessment, and resource management.
 
@@ -149,7 +149,7 @@ The project is currently undergoing significant development to implement a compr
 2.  **Clone the repository:**
     ```bash
     git clone <your-repository-url>
-    cd site2data
+    cd ai-cinehub
     ```
 3.  **Install dependencies:**
     (From the project root directory)
