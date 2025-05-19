@@ -190,7 +190,7 @@ if ! check_port_available "$WEB_PORT"; then
 fi
 
 # Start the application using Docker Compose
-echo "Starting Site2Data application..."
+echo "Starting ai_CineHub application..."
 if [ "$DETACHED" = true ]; then
   docker-compose up -d || handle_error "Failed to start Docker containers."
 else

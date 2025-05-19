@@ -37,7 +37,7 @@ CONSUMER_ID = f'worker-py-{os.getpid()}'
 
 # --- MongoDB Configuration ---
 MONGO_URI = os.getenv('MONGO_URI', 'mongodb://localhost:27017')
-DB_NAME = os.getenv('MONGO_DB_NAME', 'site2data')
+DB_NAME = os.getenv('MONGO_DB_NAME', 'ai-cinehub')
 JOBS_COLLECTION_NAME = os.getenv('MONGO_JOBS_COLLECTION', 'jobs')
 SCENES_COLLECTION_NAME = os.getenv('MONGO_SCENES_COLLECTION', 'scenes')
 

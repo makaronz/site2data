@@ -2,7 +2,7 @@ import logging
 import os
 from logging.handlers import RotatingFileHandler
 
-def setup_logging(app_name: str = "site2data") -> logging.Logger:
+def setup_logging(app_name: str = "ai-cinehub") -> logging.Logger:
     """
     Konfiguruje system logowania dla aplikacji.
     

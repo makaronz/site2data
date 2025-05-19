@@ -21,7 +21,7 @@ from weaviate.classes.init import Auth
 # Konfiguracja loggera
 logger = setup_logging()
 
-app = FastAPI(title="Site2Data API")
+app = FastAPI(title="ai_CineHub API")
 
 # CORS configuration
 app.add_middleware(

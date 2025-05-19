@@ -1,10 +1,10 @@
-# Site2Data Backend
+# ai_CineHub Backend
 
 ---
 
 ## Purpose
 
-This is the Node.js backend for Site2Data – a platform for filmmakers to analyze film scripts and production documentation using AI/ML.
+This is the Node.js backend for ai_CineHub – a platform for filmmakers to analyze film scripts and production documentation using AI/ML.
 
 ---
 

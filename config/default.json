@@ -4,7 +4,7 @@
     "host": "localhost"
   },
   "database": {
-    "url": "mongodb://localhost:27017/site2data"
+    "url": "mongodb://localhost:27017/ai-cinehub"
   },
   "storage": {
     "uploadDir": "data/uploads",

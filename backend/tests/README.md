@@ -1,4 +1,4 @@
-# Testy Integracyjne i Jednostkowe dla Aplikacji Site2Data
+# Testy Integracyjne i Jednostkowe dla Aplikacji ai_CineHub
 
 ## 1. Przegląd
 
