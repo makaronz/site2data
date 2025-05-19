@@ -9,6 +9,10 @@ import { exportNodesCSV, exportEdgesCSV, exportGEXF } from '../utils/graphExport
 import { z } from 'zod';
 import { pdf } from 'pdf-parse';
 import { validateRequest, validationSchemas, validateAuthToken } from '../middleware/validation';
+// Import the path sanitizer utility
+import pathSanitizer from '../utils/pathSanitizer';
+// Import rate limiters
+import { intensiveLimiter } from '../middleware/rateLimiter';
 
 // Definicje typów
 interface MulterFile extends Express.Multer.File {
@@ -29,17 +33,27 @@ const errorMessageSchema = z.object({
   code: z.string().optional()
 });
 
+// Define allowed upload directory
+const UPLOAD_DIR = path.join(process.cwd(), 'uploads');
+const CACHE_DIR = path.join(process.cwd(), 'cache');
+
+// Ensure directories exist
+if (!fs.existsSync(UPLOAD_DIR)) {
+  fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+}
+if (!fs.existsSync(CACHE_DIR)) {
+  fs.mkdirSync(CACHE_DIR, { recursive: true });
+}
+
 // Konfiguracja multer dla przesyłania plików
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const uploadDir = path.join(process.cwd(), 'uploads');
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
-    cb(null, uploadDir);
+    cb(null, UPLOAD_DIR);
   },
   filename: (req, file, cb) => {
-    cb(null, `${Date.now()}-${file.originalname}`);
+    // Sanitize filename to prevent path traversal
+    const sanitizedName = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
+    cb(null, `${Date.now()}-${sanitizedName}`);
   }
 });
 
@@ -64,6 +78,10 @@ const upload = multer({
 });
 
 const router: Router = Router();
+
+// Apply rate limiting to resource-intensive endpoints
+router.use('/analyze', intensiveLimiter);
+router.use('/api/script/:id/graph', intensiveLimiter);
 
 // Serwis do śledzenia postępu analizy
 class AnalysisProgressTracker {
@@ -306,20 +324,21 @@ router.post('/analyze', upload.single('script'), validateRequest({ body: validat
       }
     }
     
-    // Odczytaj zawartość pliku
-    const filePath = (req.file as MulterFile).path;
-    
+    // Odczytaj zawartość pliku - use path sanitization
     try {
+      // Sanitize the file path to prevent path traversal
+      const filePath = pathSanitizer.sanitizePath((req.file as MulterFile).path, UPLOAD_DIR);
+      
       let fileContent: string;
       
       if (req.body.type === 'pdf') {
         // Obsługa plików PDF
-        const dataBuffer = fs.readFileSync(filePath);
+        const dataBuffer = await pathSanitizer.safeReadFile(filePath);
         const data = await pdf(dataBuffer);
         fileContent = data.text;
       } else {
         // Obsługa plików tekstowych
-        fileContent = fs.readFileSync(filePath, 'utf-8');
+        fileContent = (await pathSanitizer.safeReadFile(filePath)).toString('utf-8');
       }
       
       // Prosty test czy plik jest czytelny
@@ -361,9 +380,10 @@ router.post('/analyze', upload.single('script'), validateRequest({ body: validat
         details: readError instanceof Error ? readError.message : 'Unknown error'
       });
     } finally {
-      // Usuń plik po analizie
+      // Usuń plik po analizie - safely using path sanitizer
       try {
-        fs.unlinkSync(filePath);
+        const filePath = pathSanitizer.sanitizePath((req.file as MulterFile).path, UPLOAD_DIR);
+        await pathSanitizer.safeDeleteFile(filePath);
         console.log('Plik usunięty:', filePath);
       } catch (unlinkError) {
         console.error('Błąd podczas usuwania pliku:', unlinkError);
@@ -384,13 +404,32 @@ router.post('/analyze', upload.single('script'), validateRequest({ body: validat
 router.get('/api/script/:id/graph/nodes', validateRequest({ params: validationSchemas.id }), async (req, res) => {
   try {
     const scriptId = req.params.id;
-    let analysisPath = path.join(process.cwd(), 'uploads', `${scriptId}_analysis.json`);
+    // Sanitize script ID to prevent injection
+    const sanitizedScriptId = scriptId.replace(/[^a-zA-Z0-9_-]/g, '');
     
-    if (!fs.existsSync(analysisPath)) {
-      // Fallback do testowego pliku
-      const testPath = path.join(process.cwd(), 'uploads', `test_analysis.json`);
-      if (fs.existsSync(testPath)) {
-        analysisPath = testPath;
+    // Use path sanitizer to safely construct file paths
+    const analysisPath = pathSanitizer.sanitizePath(
+      path.join(UPLOAD_DIR, `${sanitizedScriptId}_analysis.json`),
+      UPLOAD_DIR
+    );
+    
+    if (!await pathSanitizer.safeFileExists(analysisPath)) {
+      // Fallback to test file with safe path handling
+      const testPath = pathSanitizer.sanitizePath(
+        path.join(UPLOAD_DIR, 'test_analysis.json'),
+        UPLOAD_DIR
+      );
+      
+      if (await pathSanitizer.safeFileExists(testPath)) {
+        // Use the test file instead
+        const analysisData = JSON.parse((await pathSanitizer.safeReadFile(testPath)).toString('utf-8'));
+        const outputPath = pathSanitizer.sanitizePath(
+          path.join(CACHE_DIR, `${sanitizedScriptId}_nodes.csv`),
+          CACHE_DIR
+        );
+        
+        exportNodesCSV(analysisData.analysis.characters, outputPath);
+        return res.download(outputPath, 'nodes.csv');
       } else {
         return res.status(404).json({
           success: false,
@@ -400,9 +439,13 @@ router.get('/api/script/:id/graph/nodes', validateRequest({ params: validationSc
       }
     }
     
-    const analysis = JSON.parse(fs.readFileSync(analysisPath, 'utf-8'));
-    const outputPath = path.join(process.cwd(), 'cache', `${scriptId}_nodes.csv`);
-    exportNodesCSV(analysis.analysis.characters, outputPath);
+    const analysisData = JSON.parse((await pathSanitizer.safeReadFile(analysisPath)).toString('utf-8'));
+    const outputPath = pathSanitizer.sanitizePath(
+      path.join(CACHE_DIR, `${sanitizedScriptId}_nodes.csv`),
+      CACHE_DIR
+    );
+    
+    exportNodesCSV(analysisData.analysis.characters, outputPath);
     res.download(outputPath, 'nodes.csv');
   } catch (error) {
     console.error('Error generating nodes CSV:', error);
@@ -419,13 +462,32 @@ router.get('/api/script/:id/graph/nodes', validateRequest({ params: validationSc
 router.get('/api/script/:id/graph/edges', validateRequest({ params: validationSchemas.id }), async (req, res) => {
   try {
     const scriptId = req.params.id;
-    let analysisPath = path.join(process.cwd(), 'uploads', `${scriptId}_analysis.json`);
+    // Sanitize script ID to prevent injection
+    const sanitizedScriptId = scriptId.replace(/[^a-zA-Z0-9_-]/g, '');
     
-    if (!fs.existsSync(analysisPath)) {
-      // Fallback do testowego pliku
-      const testPath = path.join(process.cwd(), 'uploads', `test_analysis.json`);
-      if (fs.existsSync(testPath)) {
-        analysisPath = testPath;
+    // Use path sanitizer to safely construct file paths
+    const analysisPath = pathSanitizer.sanitizePath(
+      path.join(UPLOAD_DIR, `${sanitizedScriptId}_analysis.json`),
+      UPLOAD_DIR
+    );
+    
+    if (!await pathSanitizer.safeFileExists(analysisPath)) {
+      // Fallback to test file with safe path handling
+      const testPath = pathSanitizer.sanitizePath(
+        path.join(UPLOAD_DIR, 'test_analysis.json'),
+        UPLOAD_DIR
+      );
+      
+      if (await pathSanitizer.safeFileExists(testPath)) {
+        // Use the test file instead
+        const analysisData = JSON.parse((await pathSanitizer.safeReadFile(testPath)).toString('utf-8'));
+        const outputPath = pathSanitizer.sanitizePath(
+          path.join(CACHE_DIR, `${sanitizedScriptId}_edges.csv`),
+          CACHE_DIR
+        );
+        
+        exportEdgesCSV(analysisData.analysis.relationships, outputPath);
+        return res.download(outputPath, 'edges.csv');
       } else {
         return res.status(404).json({
           success: false,
@@ -435,9 +497,13 @@ router.get('/api/script/:id/graph/edges', validateRequest({ params: validationSc
       }
     }
     
-    const analysis = JSON.parse(fs.readFileSync(analysisPath, 'utf-8'));
-    const outputPath = path.join(process.cwd(), 'cache', `${scriptId}_edges.csv`);
-    exportEdgesCSV(analysis.analysis.relationships, outputPath);
+    const analysisData = JSON.parse((await pathSanitizer.safeReadFile(analysisPath)).toString('utf-8'));
+    const outputPath = pathSanitizer.sanitizePath(
+      path.join(CACHE_DIR, `${sanitizedScriptId}_edges.csv`),
+      CACHE_DIR
+    );
+    
+    exportEdgesCSV(analysisData.analysis.relationships, outputPath);
     res.download(outputPath, 'edges.csv');
   } catch (error) {
     console.error('Error generating edges CSV:', error);
@@ -454,9 +520,16 @@ router.get('/api/script/:id/graph/edges', validateRequest({ params: validationSc
 router.get('/api/script/:id/graph/gexf', validateRequest({ params: validationSchemas.id }), async (req, res) => {
   try {
     const scriptId = req.params.id;
-    const analysisPath = path.join(process.cwd(), 'uploads', `${scriptId}_analysis.json`);
+    // Sanitize script ID to prevent injection
+    const sanitizedScriptId = scriptId.replace(/[^a-zA-Z0-9_-]/g, '');
     
-    if (!fs.existsSync(analysisPath)) {
+    // Use path sanitizer to safely construct file paths
+    const analysisPath = pathSanitizer.sanitizePath(
+      path.join(UPLOAD_DIR, `${sanitizedScriptId}_analysis.json`),
+      UPLOAD_DIR
+    );
+    
+    if (!await pathSanitizer.safeFileExists(analysisPath)) {
       return res.status(404).json({
         success: false,
         message: 'Analysis not found',
@@ -464,9 +537,13 @@ router.get('/api/script/:id/graph/gexf', validateRequest({ params: validationSch
       });
     }
     
-    const analysis = JSON.parse(fs.readFileSync(analysisPath, 'utf-8'));
-    const outputPath = path.join(process.cwd(), 'cache', `${scriptId}_network.gexf`);
-    exportGEXF(analysis.analysis.characters, analysis.analysis.relationships, outputPath);
+    const analysisData = JSON.parse((await pathSanitizer.safeReadFile(analysisPath)).toString('utf-8'));
+    const outputPath = pathSanitizer.sanitizePath(
+      path.join(CACHE_DIR, `${sanitizedScriptId}_network.gexf`),
+      CACHE_DIR
+    );
+    
+    exportGEXF(analysisData.analysis.characters, analysisData.analysis.relationships, outputPath);
     res.download(outputPath, 'network.gexf');
   } catch (error) {
     console.error('Error generating GEXF file:', error);
