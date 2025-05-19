@@ -1,6 +1,7 @@
-import React from 'react';
-import { Box, Typography, Paper, useTheme, Grid, Checkbox, FormControlLabel } from '@mui/material';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Box, Typography, Paper, useTheme, FormControl, InputLabel, Select, MenuItem, Checkbox, FormControlLabel, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TableSortLabel } from '@mui/material';
 import useGlobalStore from '../store/globalStore';
+import apiClient, { LoadingIndicator, ErrorIndicator } from '../api/apiClient';
 
 /**
  * Props & Equipment Matrix View
@@ -17,49 +18,168 @@ const PropsMatrix: React.FC = () => {
   const theme = useTheme();
   const { highContrast } = useGlobalStore();
   
-  // Mock data for scenes and props (will be replaced with API data)
-  const mockScenes = [
-    { id: 1, number: 1, location: 'INT. APARTMENT - DAY' },
-    { id: 2, number: 2, location: 'EXT. STREET - NIGHT' },
-    { id: 3, number: 3, location: 'INT. OFFICE - DAY' },
-    { id: 4, number: 4, location: 'EXT. PARK - DAY' },
-    { id: 5, number: 5, location: 'INT. RESTAURANT - NIGHT' },
-  ];
+  // State for API data and UI
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  const [scenes, setScenes] = useState<any[]>([]);
+  const [props, setProps] = useState<any[]>([]);
+  const [checkedItems, setCheckedItems] = useState<Record<string, boolean>>({});
+  const [propTypeFilter, setPropTypeFilter] = useState<string>('all');
+  const [showMissingOnly, setShowMissingOnly] = useState<boolean>(false);
+  const [orderBy, setOrderBy] = useState<string>('number');
+  const [order, setOrder] = useState<'asc' | 'desc'>('asc');
   
-  const mockProps = [
-    { id: 1, name: 'Car', type: 'vehicle', icon: '🚗', scenes: [2] },
-    { id: 2, name: 'Gun', type: 'weapon', icon: '🔫', scenes: [2, 6] },
-    { id: 3, name: 'Laptop', type: 'electronics', icon: '💻', scenes: [1, 3] },
-    { id: 4, name: 'Coffee Cup', type: 'prop', icon: '☕', scenes: [1, 3, 5] },
-    { id: 5, name: 'Briefcase', type: 'prop', icon: '💼', scenes: [3] },
-    { id: 6, name: 'Picnic Basket', type: 'prop', icon: '🧺', scenes: [4] },
-    { id: 7, name: 'Wine Bottle', type: 'prop', icon: '🍾', scenes: [5] },
-    { id: 8, name: 'Phone', type: 'electronics', icon: '📱', scenes: [1, 2, 3, 4, 5] },
-  ];
+  // Fetch scenes data
+  useEffect(() => {
+    const fetchScenes = async () => {
+      try {
+        setLoading(true);
+        const data = await apiClient.getScenes();
+        setScenes(data);
+        setError(null);
+      } catch (err) {
+        console.error('Error fetching scenes:', err);
+        setError('Failed to load scenes data. Please try again later.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchScenes();
+  }, []);
   
-  // State for checked items
-  const [checkedItems, setCheckedItems] = React.useState<Record<string, boolean>>({});
+  // Fetch props data
+  useEffect(() => {
+    const fetchProps = async () => {
+      try {
+        setLoading(true);
+        const data = await apiClient.getProps();
+        setProps(data);
+        setError(null);
+      } catch (err) {
+        console.error('Error fetching props:', err);
+        setError('Failed to load props data. Please try again later.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchProps();
+  }, []);
+  
+  // Extract unique prop types for filter
+  const propTypes = useMemo(() => {
+    const types = new Set<string>();
+    props.forEach(prop => {
+      types.add(prop.type);
+    });
+    return Array.from(types).sort();
+  }, [props]);
+  
+  // Filter props based on selected type
+  const filteredProps = useMemo(() => {
+    if (propTypeFilter === 'all') {
+      return props;
+    }
+    return props.filter(prop => prop.type === propTypeFilter);
+  }, [props, propTypeFilter]);
+  
+  // Check if a prop is used in a scene
+  const isPropInScene = useCallback((sceneId: string, propId: string) => {
+    const prop = props.find(p => p.id === propId);
+    return prop?.scenes.includes(sceneId) || false;
+  }, [props]);
+  
+  // Check if a prop is checked
+  const isPropChecked = useCallback((sceneId: string, propId: string) => {
+    const key = `${sceneId}-${propId}`;
+    return checkedItems[key] || false;
+  }, [checkedItems]);
   
   // Handle checkbox change
-  const handleCheckboxChange = (sceneId: number, propId: number) => {
+  const handleCheckboxChange = useCallback((sceneId: string, propId: string) => {
     const key = `${sceneId}-${propId}`;
     setCheckedItems(prev => ({
       ...prev,
       [key]: !prev[key]
     }));
-  };
+  }, []);
   
-  // Check if a prop is used in a scene
-  const isPropInScene = (sceneId: number, propId: number) => {
-    const prop = mockProps.find(p => p.id === propId);
-    return prop?.scenes.includes(sceneId) || false;
-  };
+  // Get prop icon
+  const getPropIcon = useCallback((type: string) => {
+    switch (type) {
+      case 'vehicle': return '🚗';
+      case 'weapon': return '🔫';
+      case 'electronics': return '💻';
+      case 'furniture': return '🪑';
+      case 'clothing': return '👕';
+      case 'food': return '🍎';
+      case 'drink': return '🥤';
+      case 'tool': return '🔧';
+      default: return '📦';
+    }
+  }, []);
   
-  // Check if a prop is checked
-  const isPropChecked = (sceneId: number, propId: number) => {
-    const key = `${sceneId}-${propId}`;
-    return checkedItems[key] || false;
-  };
+  // Handle sort request
+  const handleRequestSort = useCallback((property: string) => {
+    const isAsc = orderBy === property && order === 'asc';
+    setOrder(isAsc ? 'desc' : 'asc');
+    setOrderBy(property);
+  }, [order, orderBy]);
+  
+  // Sort scenes
+  const sortedScenes = useMemo(() => {
+    const comparator = (a: any, b: any) => {
+      if (orderBy === 'number') {
+        return order === 'asc' ? a.number - b.number : b.number - a.number;
+      } else if (orderBy === 'location') {
+        return order === 'asc' 
+          ? a.location.localeCompare(b.location) 
+          : b.location.localeCompare(a.location);
+      } else if (orderBy === 'propCount') {
+        const aCount = props.filter(p => p.scenes.includes(a.id)).length;
+        const bCount = props.filter(p => p.scenes.includes(b.id)).length;
+        return order === 'asc' ? aCount - bCount : bCount - aCount;
+      }
+      return 0;
+    };
+    
+    return [...scenes].sort(comparator);
+  }, [scenes, props, order, orderBy]);
+  
+  // Filter scenes if showing missing only
+  const displayedScenes = useMemo(() => {
+    if (!showMissingOnly) {
+      return sortedScenes;
+    }
+    
+    return sortedScenes.filter(scene => {
+      // Check if any filtered props are missing for this scene
+      return filteredProps.some(prop => {
+        const isInScene = prop.scenes.includes(scene.id);
+        const isChecked = isPropChecked(scene.id, prop.id);
+        return isInScene && !isChecked;
+      });
+    });
+  }, [sortedScenes, showMissingOnly, filteredProps, isPropChecked]);
+  
+  // Calculate summary data
+  const propSummary = useMemo(() => {
+    return filteredProps.map(prop => {
+      const allocatedCount = scenes.filter(scene => 
+        isPropInScene(scene.id, prop.id) && isPropChecked(scene.id, prop.id)
+      ).length;
+      
+      const requiredCount = prop.scenes.length;
+      
+      return {
+        ...prop,
+        allocatedCount,
+        requiredCount,
+        missingCount: requiredCount - allocatedCount
+      };
+    });
+  }, [filteredProps, scenes, isPropInScene, isPropChecked]);
   
   return (
     <Box>
@@ -71,132 +191,215 @@ const PropsMatrix: React.FC = () => {
         Manage and track props and equipment allocation across all scenes.
       </Typography>
       
-      {/* Matrix */}
+      {/* Filters */}
       <Paper 
         elevation={2}
         sx={{ 
-          p: 2,
-          overflowX: 'auto',
+          p: 2, 
+          mb: 4,
           backgroundColor: highContrast 
             ? theme.palette.mode === 'dark' ? '#121212' : '#ffffff'
             : theme.palette.background.paper,
         }}
       >
-        <Box sx={{ minWidth: 800 }}>
-          {/* Header Row */}
-          <Grid container spacing={1} sx={{ mb: 2, borderBottom: `1px solid ${theme.palette.divider}`, pb: 1 }}>
-            <Grid item xs={3}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>
-                Scene
-              </Typography>
-            </Grid>
-            {mockProps.map(prop => (
-              <Grid item xs={1} key={prop.id} sx={{ textAlign: 'center' }}>
-                <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>
-                  <span role="img" aria-label={prop.type} style={{ fontSize: '1.2rem' }}>
-                    {prop.icon}
-                  </span>
-                </Typography>
-                <Typography variant="caption" sx={{ display: 'block', fontSize: '0.7rem' }}>
-                  {prop.name}
-                </Typography>
-              </Grid>
-            ))}
-          </Grid>
-          
-          {/* Scene Rows */}
-          {mockScenes.map(scene => (
-            <Grid 
-              container 
-              spacing={1} 
-              key={scene.id} 
-              sx={{ 
-                mb: 1, 
-                py: 1,
-                '&:nth-of-type(even)': {
-                  backgroundColor: theme.palette.mode === 'dark' 
-                    ? 'rgba(255, 255, 255, 0.05)' 
-                    : 'rgba(0, 0, 0, 0.02)',
-                }
-              }}
+        <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
+          <FormControl sx={{ minWidth: 200 }} size="small">
+            <InputLabel id="prop-type-filter-label">Prop Type</InputLabel>
+            <Select
+              labelId="prop-type-filter-label"
+              id="prop-type-filter"
+              value={propTypeFilter}
+              label="Prop Type"
+              onChange={(e) => setPropTypeFilter(e.target.value)}
             >
-              <Grid item xs={3}>
-                <Typography variant="body2">
-                  Scene {scene.number}: {scene.location}
-                </Typography>
-              </Grid>
-              {mockProps.map(prop => (
-                <Grid item xs={1} key={prop.id} sx={{ textAlign: 'center' }}>
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        size="small"
-                        checked={isPropChecked(scene.id, prop.id)}
-                        onChange={() => handleCheckboxChange(scene.id, prop.id)}
-                        disabled={!isPropInScene(scene.id, prop.id)}
-                      />
-                    }
-                    label=""
-                    sx={{ 
-                      m: 0,
-                      '& .MuiCheckbox-root': {
-                        p: 0.5,
-                      }
-                    }}
-                  />
-                </Grid>
+              <MenuItem value="all">All Types</MenuItem>
+              {propTypes.map(type => (
+                <MenuItem key={type} value={type}>
+                  {getPropIcon(type)} {type.charAt(0).toUpperCase() + type.slice(1)}
+                </MenuItem>
               ))}
-            </Grid>
-          ))}
+            </Select>
+          </FormControl>
+          
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={showMissingOnly}
+                onChange={(e) => setShowMissingOnly(e.target.checked)}
+              />
+            }
+            label="Show Missing Only"
+          />
         </Box>
       </Paper>
       
-      {/* Summary */}
-      <Paper 
-        elevation={2}
-        sx={{ 
-          p: 2,
-          mt: 3,
-          backgroundColor: highContrast 
-            ? theme.palette.mode === 'dark' ? '#121212' : '#ffffff'
-            : theme.palette.background.paper,
-        }}
-      >
-        <Typography variant="h6" gutterBottom>
-          Props Summary
-        </Typography>
-        
-        <Grid container spacing={2}>
-          {mockProps.map(prop => (
-            <Grid item xs={6} md={3} key={prop.id}>
-              <Paper 
-                elevation={1}
-                sx={{ 
-                  p: 2,
-                  backgroundColor: highContrast 
-                    ? theme.palette.mode === 'dark' ? '#1e1e1e' : '#f5f5f5'
-                    : theme.palette.background.paper,
-                }}
-              >
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                  <span role="img" aria-label={prop.type} style={{ fontSize: '1.5rem', marginRight: '8px' }}>
-                    {prop.icon}
-                  </span>
-                  <Typography variant="subtitle1">
-                    {prop.name}
-                  </Typography>
-                </Box>
-                <Typography variant="body2">
-                  Type: {prop.type}
+      {/* Loading and Error States */}
+      {loading ? (
+        <LoadingIndicator />
+      ) : error ? (
+        <ErrorIndicator message={error} />
+      ) : (
+        <>
+          {/* Matrix */}
+          <Paper 
+            elevation={2}
+            sx={{ 
+              p: 2,
+              mb: 4,
+              backgroundColor: highContrast 
+                ? theme.palette.mode === 'dark' ? '#121212' : '#ffffff'
+                : theme.palette.background.paper,
+            }}
+          >
+            <TableContainer sx={{ maxHeight: 500, overflowX: 'auto' }}>
+              <Table stickyHeader size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>
+                      <TableSortLabel
+                        active={orderBy === 'number'}
+                        direction={orderBy === 'number' ? order : 'asc'}
+                        onClick={() => handleRequestSort('number')}
+                      >
+                        Scene
+                      </TableSortLabel>
+                    </TableCell>
+                    <TableCell>
+                      <TableSortLabel
+                        active={orderBy === 'location'}
+                        direction={orderBy === 'location' ? order : 'asc'}
+                        onClick={() => handleRequestSort('location')}
+                      >
+                        Location
+                      </TableSortLabel>
+                    </TableCell>
+                    <TableCell>
+                      <TableSortLabel
+                        active={orderBy === 'propCount'}
+                        direction={orderBy === 'propCount' ? order : 'asc'}
+                        onClick={() => handleRequestSort('propCount')}
+                      >
+                        Props
+                      </TableSortLabel>
+                    </TableCell>
+                    {filteredProps.map(prop => (
+                      <TableCell key={prop.id} align="center">
+                        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                          <span role="img" aria-label={prop.type} style={{ fontSize: '1.2rem' }}>
+                            {getPropIcon(prop.type)}
+                          </span>
+                          <Typography variant="caption" sx={{ display: 'block', fontSize: '0.7rem', whiteSpace: 'nowrap' }}>
+                            {prop.name}
+                          </Typography>
+                        </Box>
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {displayedScenes.map(scene => (
+                    <TableRow 
+                      key={scene.id}
+                      sx={{ 
+                        '&:nth-of-type(even)': {
+                          backgroundColor: theme.palette.mode === 'dark' 
+                            ? 'rgba(255, 255, 255, 0.05)' 
+                            : 'rgba(0, 0, 0, 0.02)',
+                        }
+                      }}
+                    >
+                      <TableCell>{scene.number}</TableCell>
+                      <TableCell>{scene.location}</TableCell>
+                      <TableCell>
+                        {props.filter(p => p.scenes.includes(scene.id)).length}
+                      </TableCell>
+                      {filteredProps.map(prop => (
+                        <TableCell key={prop.id} align="center">
+                          <Checkbox
+                            size="small"
+                            checked={isPropChecked(scene.id, prop.id)}
+                            onChange={() => handleCheckboxChange(scene.id, prop.id)}
+                            disabled={!isPropInScene(scene.id, prop.id)}
+                            sx={{ 
+                              p: 0.5,
+                              color: isPropInScene(scene.id, prop.id) && !isPropChecked(scene.id, prop.id)
+                                ? theme.palette.error.main
+                                : undefined
+                            }}
+                          />
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+            
+            {displayedScenes.length === 0 && (
+              <Box sx={{ p: 4, textAlign: 'center' }}>
+                <Typography variant="body1" color="text.secondary">
+                  No scenes match the selected filters
                 </Typography>
-                <Typography variant="body2">
-                  Used in: {prop.scenes.length} scenes
-                </Typography>
-              </Paper>
-            </Grid>
-          ))}
-        </Grid>
-      </Paper>
+              </Box>
+            )}
+          </Paper>
+          
+          {/* Summary */}
+          <Paper 
+            elevation={2}
+            sx={{ 
+              p: 2,
+              backgroundColor: highContrast 
+                ? theme.palette.mode === 'dark' ? '#121212' : '#ffffff'
+                : theme.palette.background.paper,
+            }}
+          >
+            <Typography variant="h6" gutterBottom>
+              Props Summary
+            </Typography>
+            
+            <TableContainer>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Prop</TableCell>
+                    <TableCell>Type</TableCell>
+                    <TableCell align="center">Required</TableCell>
+                    <TableCell align="center">Allocated</TableCell>
+                    <TableCell align="center">Missing</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {propSummary.map(prop => (
+                    <TableRow key={prop.id}>
+                      <TableCell>
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                          <span role="img" aria-label={prop.type} style={{ fontSize: '1.2rem', marginRight: '8px' }}>
+                            {getPropIcon(prop.type)}
+                          </span>
+                          {prop.name}
+                        </Box>
+                      </TableCell>
+                      <TableCell>{prop.type}</TableCell>
+                      <TableCell align="center">{prop.requiredCount}</TableCell>
+                      <TableCell align="center">{prop.allocatedCount}</TableCell>
+                      <TableCell 
+                        align="center"
+                        sx={{ 
+                          color: prop.missingCount > 0 ? theme.palette.error.main : theme.palette.success.main,
+                          fontWeight: prop.missingCount > 0 ? 'bold' : 'normal'
+                        }}
+                      >
+                        {prop.missingCount}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </Paper>
+        </>
+      )}
     </Box>
   );
 };
