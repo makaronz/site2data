@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import { createServer } from 'http';
-import * as WebSocket from 'ws';
+import WebSocket from 'ws';
 import { initClients } from './clients';
 import router from './router';
 
@@ -23,10 +23,10 @@ const server = createServer(app);
 const wss = new WebSocket.Server({ server, path: '/ws/script-analysis' });
 
 // WebSocket connection handler
-wss.on('connection', (ws) => {
+wss.on('connection', (ws: WebSocket) => {
   console.log('WebSocket client connected');
   
-  ws.on('message', (message) => {
+  ws.on('message', (message: WebSocket.Data) => {
     console.log('Received message:', message);
     // Handle incoming messages
   });

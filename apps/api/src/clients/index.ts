@@ -1,13 +1,13 @@
-import { MinioClient, MINIO_BUCKET } from './minioClient'; // Add MINIO_BUCKET export
-import { redisClient, STREAM_PDF_CHUNKS } from './redisClient'; // Add STREAM_PDF_CHUNKS export
-import { mongoClient, jobsCollection, scenesCollection } from './mongoClient'; // Ensure scenesCollection is exported if needed later
+import { minioClient, MINIO_BUCKET } from './minioClient';
+import { redisClient, STREAM_PDF_CHUNKS } from './redisClient';
+import { mongoClient, jobsCollection, scenesCollection } from './mongoClient';
 
 // Export configured clients and constants for use in procedures
 export {
-  MinioClient,
-  MINIO_BUCKET, // Export constant
+  minioClient,
+  MINIO_BUCKET,
   redisClient,
-  STREAM_PDF_CHUNKS, // Export constant
+  STREAM_PDF_CHUNKS,
   mongoClient,
   jobsCollection,
   scenesCollection,

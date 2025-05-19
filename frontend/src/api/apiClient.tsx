@@ -19,7 +19,7 @@ const apiClient = {
   getScenes: async () => {
     try {
       const response = await axios.get(`${apiClient.baseURL}/scenes`);
-      return response.data;
+      return response.data.scenes || [];
     } catch (error) {
       console.error('Error fetching scenes:', error);
       throw error;

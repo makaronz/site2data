@@ -1,6 +1,6 @@
 import { redisClient, ensureRedisConsumerGroups } from './clients/redisClient';
 import { minioClient, MINIO_BUCKET, ensureMinioBucket } from './clients/minioClient';
-import { jobsCollection, initMongoDB, JOBS_COLLECTION } from './clients/mongoClient';
+import { initMongo } from './clients/mongoClient';
 
 // Re-export all clients and constants
 export {
@@ -14,8 +14,7 @@ export {
   ensureMinioBucket,
   
   // MongoDB
-  jobsCollection,
-  JOBS_COLLECTION
+  initMongo
 };
 
 // Stream names
@@ -33,5 +32,5 @@ export const initClients = async () => {
   }
 
   await ensureMinioBucket();
-  await initMongoDB();
+  await initMongo();
 };

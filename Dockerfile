@@ -1,37 +1,39 @@
-FROM python:3.9-slim
+# apps/api/Dockerfile
+FROM node:18-alpine AS development
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y poppler-utils
+WORKDIR /usr/src/app
 
-# Set working directory
-WORKDIR /app
+# Copy package.json and lock files
+COPY package*.json ./
 
-# Set environment variables
-ENV PYTHONUNBUFFERED=1
-ENV PORT=8080
+# Install all dependencies (including devDependencies needed for building)
+RUN npm install --legacy-peer-deps && npm install ws @types/ws
 
-# Copy the application code
+# Copy the rest of the application code
 COPY . .
 
-# Install Python dependencies if requirements.txt exists
-RUN if [ -f requirements.txt ]; then pip install --no-cache-dir -r requirements.txt; fi
+# Build TypeScript to JavaScript
+RUN npm run build
 
-# Install Node.js dependencies if package.json exists
-RUN apt-get update && apt-get install -y curl && \
-    curl -fsSL https://deb.nodesource.com/setup_18.x | bash - && \
-    apt-get install -y nodejs && \
-    if [ -f package.json ]; then npm install --legacy-peer-deps; fi
+# --- Production image ---
+FROM node:18-alpine AS production
 
-# Default command
-CMD if [ -f app.py ]; then \
-        exec gunicorn --bind :$PORT app:app; \
-    elif [ -f main.py ]; then \
-        exec python main.py; \
-    elif [ -f server.js ]; then \
-        exec node server.js; \
-    elif [ -f index.js ]; then \
-        exec node index.js; \
-    else \
-        echo "No recognized entry point found. Please specify a command."; \
-        exit 1; \
-    fi
+ARG NODE_ENV=production
+ENV NODE_ENV=${NODE_ENV}
+
+WORKDIR /usr/src/app
+
+COPY package*.json ./
+
+# Install only production dependencies
+RUN npm install --production=false --legacy-peer-deps && npm install ws && npm prune --production
+
+# Copy the built application from development stage
+COPY --from=development /usr/src/app/dist ./dist
+
+# Ensure ports are exposed
+EXPOSE ${PORT:-3000}
+EXPOSE 5001
+
+# Command to run the application - using compiled JavaScript
+CMD ["node", "dist/server.js"]

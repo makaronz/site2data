@@ -1,34 +1,30 @@
-import express, { Request, Response, Router } from 'express';
+import express, { Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
-import { 
-  redisClient, 
-  minioClient, 
-  jobsCollection,
-  STREAM_PDF_CHUNKS,
-  STREAM_SCRIPT_ANALYSIS,
-  MINIO_BUCKET
-} from './clients';
+import { minioClient, STREAM_PDF_CHUNKS, STREAM_SCRIPT_ANALYSIS, MINIO_BUCKET, redisClient } from './clients';
+import { jobsCollection, scenesCollection } from './clients/mongoClient';
 
 const router: Router = express.Router();
 
 // Health check endpoint
-router.get('/health', (req: Request, res: Response) => {
+router.get('/health', async (req, res) => {
   res.status(200).json({ status: 'ok' });
 });
 
 // Get script analysis job status
-router.get('/api/jobs/:jobId', async (req: Request, res: Response) => {
+router.get('/api/jobs/:jobId', async (req, res) => {
   try {
     const { jobId } = req.params;
     
     if (!jobId) {
-      return res.status(400).json({ error: 'Job ID is required' });
+      res.status(400).json({ error: 'Job ID is required' });
+      return;
     }
     
     const job = await jobsCollection.findOne({ _id: jobId });
     
     if (!job) {
-      return res.status(404).json({ error: 'Job not found' });
+      res.status(404).json({ error: 'Job not found' });
+      return;
     }
     
     res.status(200).json(job);
@@ -39,7 +35,7 @@ router.get('/api/jobs/:jobId', async (req: Request, res: Response) => {
 });
 
 // Get all script analysis jobs
-router.get('/api/jobs', async (req: Request, res: Response) => {
+router.get('/api/jobs', async (req, res) => {
   try {
     const jobs = await jobsCollection.find().sort({ createdAt: -1 }).toArray();
     res.status(200).json(jobs);
@@ -50,12 +46,13 @@ router.get('/api/jobs', async (req: Request, res: Response) => {
 });
 
 // Generate presigned URL for script upload
-router.post('/api/upload/script', async (req: Request, res: Response) => {
+router.post('/api/upload/script', async (req, res) => {
   try {
     const { filename } = req.body;
     
     if (!filename) {
-      return res.status(400).json({ error: 'Filename is required' });
+      res.status(400).json({ error: 'Filename is required' });
+      return;
     }
     
     const objectKey = `${uuidv4()}-${filename}`;
@@ -82,23 +79,20 @@ router.post('/api/upload/script', async (req: Request, res: Response) => {
 });
 
 // Start script analysis process
-router.post('/api/analyze/script', async (req: Request, res: Response) => {
+router.post('/api/analyze/script', async (req, res) => {
   try {
     const { jobId, objectKey } = req.body;
     
     if (!jobId || !objectKey) {
-      return res.status(400).json({ error: 'JobId and objectKey are required' });
+      res.status(400).json({ error: 'JobId and objectKey are required' });
+      return;
     }
     
     // 1. Update job status
     await updateJobStatus(jobId, 'processing');
     
     // 2. Publish message to Redis stream for processing
-    // Fixed: Using proper Record object format for Redis v4 compatibility
-    const messageRecord = { 
-      jobId, 
-      objectKey 
-    };
+    const messageRecord = { jobId, objectKey };
     
     await redisClient.xAdd(STREAM_PDF_CHUNKS, '*', messageRecord);
     
@@ -115,25 +109,28 @@ router.post('/api/analyze/script', async (req: Request, res: Response) => {
 });
 
 // Get script analysis results
-router.get('/api/analysis/:jobId', async (req: Request, res: Response) => {
+router.get('/api/analysis/:jobId', async (req, res) => {
   try {
     const { jobId } = req.params;
     
     if (!jobId) {
-      return res.status(400).json({ error: 'Job ID is required' });
+      res.status(400).json({ error: 'Job ID is required' });
+      return;
     }
     
     const job = await jobsCollection.findOne({ _id: jobId });
     
     if (!job) {
-      return res.status(404).json({ error: 'Job not found' });
+      res.status(404).json({ error: 'Job not found' });
+      return;
     }
     
     if (job.status !== 'completed') {
-      return res.status(202).json({ 
+      res.status(202).json({ 
         status: job.status,
         message: 'Analysis not yet complete'
       });
+      return;
     }
     
     res.status(200).json({
@@ -147,12 +144,13 @@ router.get('/api/analysis/:jobId', async (req: Request, res: Response) => {
 });
 
 // Process PDF chunks
-router.post('/api/process/pdf-chunks', async (req: Request, res: Response) => {
+router.post('/api/process/pdf-chunks', async (req, res) => {
   try {
     const { jobId, chunks } = req.body;
     
     if (!jobId || !chunks || !Array.isArray(chunks)) {
-      return res.status(400).json({ error: 'JobId and chunks array are required' });
+      res.status(400).json({ error: 'JobId and chunks array are required' });
+      return;
     }
     
     // Update job with extracted chunks
@@ -168,11 +166,7 @@ router.post('/api/process/pdf-chunks', async (req: Request, res: Response) => {
     );
     
     // Publish message to script analysis stream
-    // Fixed: Using proper Record object format for Redis v4 compatibility
-    const messageRecord = { 
-      jobId, 
-      chunkCount: chunks.length.toString() 
-    };
+    const messageRecord = { jobId, chunkCount: chunks.length.toString() };
     
     await redisClient.xAdd(STREAM_SCRIPT_ANALYSIS, '*', messageRecord);
     

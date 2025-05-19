@@ -1,0 +1,106 @@
+# Memory Bank
+
+## Recurring Issues and Solutions
+
+### Docker Compose Compatibility Issues
+
+**Problem**: Docker Compose v1.29.2 is incompatible with Docker Engine 26.x, causing "Not supported URL scheme http+docker" errors.
+
+**Solution**: 
+1. Remove legacy Docker Compose:
+   ```bash
+   sudo apt-get remove docker-compose -y
+   ```
+2. Install Docker Compose v2:
+   ```bash
+   sudo curl -L "https://github.com/docker/compose/releases/download/v2.24.6/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+   sudo chmod +x /usr/local/bin/docker-compose
+   ```
+3. Create symlink for system-wide access:
+   ```bash
+   sudo ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose
+   ```
+
+### Docker Permission Issues
+
+**Problem**: "permission denied while trying to connect to the Docker daemon socket" when running Docker commands.
+
+**Solution**:
+1. Add user to docker group:
+   ```bash
+   sudo usermod -aG docker $USER
+   ```
+2. Ensure Docker daemon is running:
+   ```bash
+   sudo systemctl start docker
+   ```
+3. Use sudo for immediate access without logout/login:
+   ```bash
+   sudo docker-compose up -d
+   ```
+
+### Redis Stream API Compatibility
+
+**Problem**: Redis v4 client requires Record objects for xAdd commands, not string arrays.
+
+**Solution**:
+```typescript
+// Incorrect (causes TypeScript error):
+await redisClient.xAdd(STREAM_PDF_CHUNKS, '*', ...streamMessage);
+
+// Correct implementation:
+const messageRecord = { jobId, objectKey };
+await redisClient.xAdd(STREAM_PDF_CHUNKS, '*', messageRecord);
+```
+
+## Architectural Patterns
+
+### Modular Client Architecture
+
+The application has been refactored to use a modular client architecture:
+
+1. **Separate client modules**:
+   - `clients/redisClient.ts`: Redis connection and stream management
+   - `clients/mongoClient.ts`: MongoDB connection and collection management
+   - `clients/minioClient.ts`: MinIO connection and bucket management
+
+2. **Central export module**:
+   - `clients.ts`: Re-exports all clients and constants for easy import
+
+This pattern improves:
+- Code organization and maintainability
+- Testing isolation
+- Dependency management
+- Future extensibility
+
+### WebSocket Integration
+
+WebSocket server is integrated directly into the main HTTP server:
+
+```typescript
+// Create HTTP server
+const server = createServer(app);
+
+// Create WebSocket server
+const wss = new WebSocket.Server({ server, path: '/ws/script-analysis' });
+```
+
+This ensures both HTTP and WebSocket services start together and share the same lifecycle.
+
+## Build Process Improvements
+
+### TypeScript Configuration
+
+The TypeScript build process has been configured to:
+1. Compile to ES2020 for modern JavaScript features
+2. Generate source maps for debugging
+3. Use strict type checking
+4. Support JSON module imports
+
+### Production Deployment
+
+The Dockerfile has been updated to:
+1. Build TypeScript in a development stage
+2. Copy only compiled assets to production stage
+3. Install only production dependencies in final image
+4. Expose both HTTP and WebSocket ports

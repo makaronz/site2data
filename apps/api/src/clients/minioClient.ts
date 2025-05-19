@@ -1,4 +1,4 @@
-import { Client as MinioClient } from 'minio';
+import { Client } from 'minio';
 import { config } from 'dotenv';
 
 // Load environment variables
@@ -10,10 +10,10 @@ const MINIO_PORT = parseInt(process.env.MINIO_PORT || '9000', 10);
 const MINIO_ACCESS_KEY = process.env.MINIO_ACCESS_KEY || 'minioadmin';
 const MINIO_SECRET_KEY = process.env.MINIO_SECRET_KEY || 'minioadmin';
 const MINIO_USE_SSL = process.env.MINIO_USE_SSL === 'true';
-export const MINIO_BUCKET = 'scripts';
+const MINIO_BUCKET = process.env.MINIO_BUCKET || 'scripts';
 
 // Initialize MinIO client
-export const minioClient = new MinioClient({
+const minioClient = new Client({
   endPoint: MINIO_ENDPOINT,
   port: MINIO_PORT,
   useSSL: MINIO_USE_SSL,
@@ -35,3 +35,5 @@ export const ensureMinioBucket = async () => {
     console.error('Failed to check/create MinIO bucket:', error);
   }
 };
+
+export { minioClient, MINIO_BUCKET };

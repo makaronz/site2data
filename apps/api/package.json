@@ -9,24 +9,28 @@
   },
   "dependencies": {
     "@trpc/server": "^10.43.0",
+    "@types/cors": "^2.8.17",
+    "@types/dotenv": "^8.2.0",
     "@types/express": "^5.0.1",
     "@types/mongoose": "^5.11.96",
+    "@types/pino": "^7.0.5",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
-    "@types/dotenv": "^8.2.0",
     "express": "^5.1.0",
-    "mongoose": "^8.14.1",
-    "zod": "^3.24.3",
-    "minio": "^8.0.0",
     "ioredis": "^5.4.1",
-    "redis": "^4.6.15",
+    "minio": "^8.0.0",
+    "mongoose": "^8.14.1",
     "pino": "^9.3.2",
-    "@types/pino": "^7.0.5",
-    "typescript": "^5.3.3",
+    "redis": "^4.6.15",
     "ts-node": "^10.9.2",
-    "@types/cors": "^2.8.17"
+    "typescript": "^5.3.3",
+    "uuid": "^11.1.0",
+    "ws": "^8.18.2",
+    "zod": "^3.24.3"
   },
   "devDependencies": {
+    "@types/uuid": "^10.0.0",
+    "@types/ws": "^8.18.1",
     "ts-node-dev": "^2.0.0"
   }
 }
