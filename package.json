@@ -11,14 +11,20 @@
   "devDependencies": {
     "@cypress/react": "^8.0.0",
     "@cypress/vite-dev-server": "^5.0.0",
+    "@eslint/js": "^9.27.0",
     "@types/bun": "latest",
     "@types/node": "^20.10.0",
     "@types/papaparse": "^5.3.15",
     "cypress": "^13.6.0",
     "eslint": "^9.25.1",
+    "eslint-plugin-import": "^2.31.0",
+    "eslint-plugin-jest": "^28.11.0",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^5.2.0",
     "prettier": "^3.5.3",
     "ts-node": "^10.9.2",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "typescript-eslint": "^8.32.1"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
@@ -26,6 +32,7 @@
     "@langchain/community": "^0.3.41",
     "@mui/icons-material": "^7.1.0",
     "@mui/material": "^7.1.0",
+    "@react-sigma/core": "^5.0.2",
     "@tanstack/react-query": "^5.75.5",
     "@trpc/client": "^11.1.2",
     "@trpc/react-query": "^11.1.2",
@@ -41,10 +48,14 @@
     "pdf.js-extract": "^0.2.1",
     "pdf2json": "^3.1.5",
     "pdfjs-dist": "^5.1.91",
-    "react-router-dom": "^7.5.3",
+    "react-big-calendar": "^1.18.0",
+    "react-router-dom": "^7.6.0",
+    "recharts": "^2.15.3",
     "sigma": "^3.0.1",
+    "tippy.js": "^6.3.7",
     "weaviate-ts-client": "^2.2.0",
-    "zod": "^3.24.3"
+    "zod": "^3.24.3",
+    "zustand": "^5.0.4"
   },
   "packageManager": "pnpm@10.9.0+sha512.0486e394640d3c1fb3c9d43d49cf92879ff74f8516959c235308f5a8f62e2e19528a65cdc2a3058f587cde71eba3d5b56327c8c33a97e4c4051ca48a10ca2d5f"
 }
