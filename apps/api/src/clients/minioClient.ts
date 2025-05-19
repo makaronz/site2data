@@ -1,38 +1,37 @@
-import * as Minio from 'minio';
-import dotenv from 'dotenv';
+import { Client as MinioClient } from 'minio';
+import { config } from 'dotenv';
 
-dotenv.config();
+// Load environment variables
+config();
 
+// MinIO configuration
 const MINIO_ENDPOINT = process.env.MINIO_ENDPOINT || 'localhost';
 const MINIO_PORT = parseInt(process.env.MINIO_PORT || '9000', 10);
 const MINIO_ACCESS_KEY = process.env.MINIO_ACCESS_KEY || 'minioadmin';
 const MINIO_SECRET_KEY = process.env.MINIO_SECRET_KEY || 'minioadmin';
 const MINIO_USE_SSL = process.env.MINIO_USE_SSL === 'true';
-export const MINIO_BUCKET = process.env.MINIO_BUCKET || 'scripts';
+export const MINIO_BUCKET = 'scripts';
 
-export const MinioClient = new Minio.Client({
+// Initialize MinIO client
+export const minioClient = new MinioClient({
   endPoint: MINIO_ENDPOINT,
   port: MINIO_PORT,
   useSSL: MINIO_USE_SSL,
   accessKey: MINIO_ACCESS_KEY,
-  secretKey: MINIO_SECRET_KEY,
+  secretKey: MINIO_SECRET_KEY
 });
 
-// Function to ensure bucket exists
-async function ensureBucketExists(client: Minio.Client, bucketName: string) {
+// Ensure MinIO bucket exists
+export const ensureMinioBucket = async () => {
   try {
-    const exists = await client.bucketExists(bucketName);
-    if (!exists) {
-      console.log(`Bucket ${bucketName} does not exist. Creating...`);
-      await client.makeBucket(bucketName, 'us-east-1'); // Region is mandatory but ignored by MinIO server
-      console.log(`Bucket ${bucketName} created successfully.`);
-      // TODO: Optionally set bucket policy (e.g., for public read access if needed)
+    const bucketExists = await minioClient.bucketExists(MINIO_BUCKET);
+    if (!bucketExists) {
+      await minioClient.makeBucket(MINIO_BUCKET);
+      console.log(`Created MinIO bucket: ${MINIO_BUCKET}`);
+    } else {
+      console.log(`MinIO bucket ${MINIO_BUCKET} already exists`);
     }
   } catch (error) {
-    console.error(`Error checking or creating bucket ${bucketName}:`, error);
-    // Handle error appropriately, maybe exit or throw
+    console.error('Failed to check/create MinIO bucket:', error);
   }
-}
-
-// Ensure the bucket exists when the module is loaded
-ensureBucketExists(MinioClient, MINIO_BUCKET); 
+};
