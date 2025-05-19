@@ -1,18 +1,23 @@
-// @deprecated This file appears to be unused and should be removed or refactored
-// FIXME: This module contains outdated code patterns and should be updated
-// during the ai_CineHub migration
+/**
+ * @deprecated This module is deprecated and will be removed in future releases.
+ * @removal-date 2025-Q3
+ * @replacement-module worker-js/pdf-extraction
+ * 
+ * This was a simple script to extract text from PDF files.
+ * It has been replaced by more robust processing in the worker-js service.
+ */
 
-import fs from 'fs';
-import path from 'path';
-
-// This is a simple script to extract text from PDF files
-// It's being replaced by more robust processing in the worker-js service
-
+/**
+ * Placeholder function that simulates PDF text extraction
+ * @param {string} pdfPath - Path to the PDF file
+ * @returns {Promise<string>} - Extracted text (placeholder)
+ */
 const extractText = async (pdfPath) => {
-  console.log('Extracting text from PDF:', pdfPath);
+  // Safe logging without exposing full path
+  console.log('Processing PDF file');
+  
   // Implementation removed as it's no longer used
   return 'Extracted text would appear here';
 };
 
-// TODO: Remove this file once the worker-js PDF extraction is fully tested
 export default extractText;
