@@ -1,179 +1,184 @@
+/**
+ * WebSocket message types and interfaces
+ * 
+ * This file contains all the type definitions for WebSocket communication
+ * between the frontend and backend.
+ */
+
 import { z } from 'zod';
 
 /**
- * Shared WebSocket message types for frontend and backend
+ * WebSocket message types
  */
-
-// Base message interface with discriminated union type
-export interface WebSocketMessage {
-  type: 'AUTH' | 'ANALYZE_SCRIPT' | 'PROGRESS' | 'ANALYSIS_RESULT' | 'ERROR';
+export enum WebSocketMessageType {
+  AUTH = 'AUTH',
+  ANALYZE_SCRIPT = 'ANALYZE_SCRIPT',
+  PROGRESS = 'PROGRESS',
+  ANALYSIS_RESULT = 'ANALYSIS_RESULT',
+  ERROR = 'ERROR'
 }
 
-// Authentication payload with specific token format requirements
-export interface WebSocketAuthPayload {
+/**
+ * Base WebSocket message interface
+ */
+export interface WebSocketMessage {
+  type: WebSocketMessageType;
+}
+
+/**
+ * Authentication payload for WebSocket connections
+ */
+export interface WebSocketAuthPayload extends WebSocketMessage {
+  type: WebSocketMessageType.AUTH;
   token: string;
   sessionId?: string;
   timestamp?: number;
   clientId?: string;
 }
 
-// Progress update with detailed stage information
-export interface AnalysisProgress {
-  stage: 'initialization' | 'parsing' | 'processing' | 'analyzing' | 'finalizing' | 'complete' | 'error';
-  progress: number; // 0-100
+/**
+ * Script analysis request message
+ */
+export interface AnalyzeScriptMessage extends WebSocketMessage {
+  type: WebSocketMessageType.ANALYZE_SCRIPT;
+  script: {
+    content: string;
+    type?: 'pdf' | 'txt';
+    filename?: string;
+  };
+}
+
+/**
+ * Progress update message
+ */
+export interface ProgressMessage extends WebSocketMessage {
+  type: WebSocketMessageType.PROGRESS;
   message: string;
-  elapsedTime?: number;
+  stage?: string;
+  progress: number;
   analysisId?: string;
+  elapsedTime?: number;
+  expiresAt?: number;
 }
 
-// Analysis result with strongly typed structure
-export interface AnalysisResult {
-  metadata: {
-    title: string;
-    authors: string[];
-    detected_language: string;
-    scene_count: number;
-    token_count: number;
-    analysis_timestamp: string;
-  };
-  analysis: {
-    characters: Character[];
-    scenes: Scene[];
-    relationships: Relationship[];
-    themes: Theme[];
-    sentiment: SentimentAnalysis;
-  };
+/**
+ * Analysis result message
+ */
+export interface AnalysisResultMessage extends WebSocketMessage {
+  type: WebSocketMessageType.ANALYSIS_RESULT;
+  result: any; // Will be typed more specifically in future versions
+  analysisId: string;
 }
 
-// Detailed character information
-export interface Character {
-  id: number;
-  name: string;
-  description?: string;
-  importance: 'main' | 'supporting' | 'minor';
-  scenes: number[];
-  traits?: string[];
-  relationships?: number[];
-}
-
-// Scene structure with specific properties
-export interface Scene {
-  id: number;
-  description: string;
-  characters: number[];
-  location?: string;
-  time?: string;
-  sentiment?: number; // -1 to 1
-}
-
-// Relationship between characters
-export interface Relationship {
-  id: number;
-  source: number; // character id
-  target: number; // character id
-  type: 'family' | 'friend' | 'romantic' | 'professional' | 'adversarial' | 'other';
-  strength: number; // 0-1
-  description?: string;
-}
-
-// Theme analysis
-export interface Theme {
-  name: string;
-  relevance: number; // 0-1
-  scenes: number[];
-}
-
-// Sentiment analysis results
-export interface SentimentAnalysis {
-  overall: number; // -1 to 1
-  by_scene: {
-    scene_id: number;
-    sentiment: number; // -1 to 1
-  }[];
-}
-
-// Error message with code and details
+/**
+ * Error message
+ */
 export interface ErrorMessage extends WebSocketMessage {
-  type: 'ERROR';
+  type: WebSocketMessageType.ERROR;
   message: string;
   code?: string;
   details?: string;
+  analysisId?: string;
   expired?: boolean;
 }
 
-// Zod schemas for runtime validation
-export const characterSchema = z.object({
-  id: z.number().int().positive(),
-  name: z.string().min(1),
-  description: z.string().optional(),
-  importance: z.enum(['main', 'supporting', 'minor']),
-  scenes: z.array(z.number().int().nonnegative()),
-  traits: z.array(z.string()).optional(),
-  relationships: z.array(z.number().int().nonnegative()).optional()
+/**
+ * Union type of all WebSocket messages
+ */
+export type WebSocketMessageUnion = 
+  | WebSocketAuthPayload
+  | AnalyzeScriptMessage
+  | ProgressMessage
+  | AnalysisResultMessage
+  | ErrorMessage;
+
+/**
+ * WebSocket client interface with additional properties
+ */
+export interface WebSocketClient {
+  id: string;
+  isAlive: boolean;
+  send: (data: string) => void;
+  on: (event: string, listener: (...args: any[]) => void) => void;
+  ping: () => void;
+  terminate: () => void;
+  close: (code?: number, reason?: string) => void;
+  _socket: {
+    remoteAddress: string;
+  };
+}
+
+/**
+ * Zod schema for WebSocket authentication payload
+ */
+export const websocketAuthSchema = z.object({
+  type: z.literal(WebSocketMessageType.AUTH),
+  token: z.string()
+    .min(32, "Token must be at least 32 characters long")
+    .max(256, "Token cannot exceed 256 characters")
+    .regex(/^[A-Za-z0-9_\-\.]+$/, "Token must contain only alphanumeric characters, underscores, hyphens, and dots")
+    .refine(
+      (token) => !token.includes(".."), 
+      "Token cannot contain consecutive dots"
+    ),
+  sessionId: z.string().uuid().optional(),
+  timestamp: z.number().int().positive().optional(),
+  clientId: z.string().optional()
 });
 
-export const sceneSchema = z.object({
-  id: z.number().int().positive(),
-  description: z.string().min(1),
-  characters: z.array(z.number().int().nonnegative()),
-  location: z.string().optional(),
-  time: z.string().optional(),
-  sentiment: z.number().min(-1).max(1).optional()
-});
-
-export const relationshipSchema = z.object({
-  id: z.number().int().positive(),
-  source: z.number().int().nonnegative(),
-  target: z.number().int().nonnegative(),
-  type: z.enum(['family', 'friend', 'romantic', 'professional', 'adversarial', 'other']),
-  strength: z.number().min(0).max(1),
-  description: z.string().optional()
-});
-
-export const themeSchema = z.object({
-  name: z.string().min(1),
-  relevance: z.number().min(0).max(1),
-  scenes: z.array(z.number().int().nonnegative())
-});
-
-export const sentimentAnalysisSchema = z.object({
-  overall: z.number().min(-1).max(1),
-  by_scene: z.array(z.object({
-    scene_id: z.number().int().positive(),
-    sentiment: z.number().min(-1).max(1)
-  }))
-});
-
-export const analysisResultSchema = z.object({
-  metadata: z.object({
-    title: z.string(),
-    authors: z.array(z.string()),
-    detected_language: z.string(),
-    scene_count: z.number().int().nonnegative(),
-    token_count: z.number().int().positive(),
-    analysis_timestamp: z.string().datetime()
-  }),
-  analysis: z.object({
-    characters: z.array(characterSchema),
-    scenes: z.array(sceneSchema),
-    relationships: z.array(relationshipSchema),
-    themes: z.array(themeSchema),
-    sentiment: sentimentAnalysisSchema
+/**
+ * Zod schema for script analysis request
+ */
+export const analyzeScriptSchema = z.object({
+  type: z.literal(WebSocketMessageType.ANALYZE_SCRIPT),
+  script: z.object({
+    content: z.string().min(1, "Script content cannot be empty"),
+    type: z.enum(['pdf', 'txt']).optional().default('txt'),
+    filename: z.string().optional()
   })
 });
 
-export const analysisProgressSchema = z.object({
-  stage: z.enum(['initialization', 'parsing', 'processing', 'analyzing', 'finalizing', 'complete', 'error']),
-  progress: z.number().min(0).max(100),
+/**
+ * Zod schema for progress message
+ */
+export const progressMessageSchema = z.object({
+  type: z.literal(WebSocketMessageType.PROGRESS),
   message: z.string(),
+  stage: z.string().optional(),
+  progress: z.number().min(0).max(100),
+  analysisId: z.string().optional(),
   elapsedTime: z.number().optional(),
-  analysisId: z.string().optional()
+  expiresAt: z.number().optional()
 });
 
+/**
+ * Zod schema for analysis result message
+ */
+export const analysisResultSchema = z.object({
+  type: z.literal(WebSocketMessageType.ANALYSIS_RESULT),
+  result: z.any(), // Will be typed more specifically in future versions
+  analysisId: z.string()
+});
+
+/**
+ * Zod schema for error message
+ */
 export const errorMessageSchema = z.object({
-  type: z.literal('ERROR'),
+  type: z.literal(WebSocketMessageType.ERROR),
   message: z.string(),
   code: z.string().optional(),
   details: z.string().optional(),
+  analysisId: z.string().optional(),
   expired: z.boolean().optional()
 });
+
+/**
+ * Union schema for all WebSocket messages
+ */
+export const websocketMessageSchema = z.discriminatedUnion('type', [
+  websocketAuthSchema,
+  analyzeScriptSchema,
+  progressMessageSchema,
+  analysisResultSchema,
+  errorMessageSchema
+]);
