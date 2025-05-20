@@ -2,12 +2,62 @@ import express, { Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { minioClient, STREAM_PDF_CHUNKS, STREAM_SCRIPT_ANALYSIS, MINIO_BUCKET, redisClient } from './clients';
 import { jobsCollection, scenesCollection } from './clients/mongoClient';
+import axios from 'axios';
 
 const router: Router = express.Router();
 
 // Health check endpoint
 router.get('/health', async (req, res) => {
   res.status(200).json({ status: 'ok' });
+});
+
+// Validate OpenAI API key
+router.post('/api/validate-openai-key', async (req, res) => {
+  try {
+    const { apiKey } = req.body;
+    
+    if (!apiKey) {
+      return res.status(400).json({ 
+        valid: false, 
+        message: 'API key is required' 
+      });
+    }
+    
+    // Validate the API key by making a simple request to OpenAI API
+    try {
+      const response = await axios.get('https://api.openai.com/v1/models', {
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      // If we get here, the API key is valid
+      return res.status(200).json({ 
+        valid: true,
+        message: 'API key is valid'
+      });
+    } catch (error) {
+      // Check if it's an authentication error
+      if (axios.isAxiosError(error) && error.response) {
+        if (error.response.status === 401) {
+          return res.status(200).json({ 
+            valid: false, 
+            message: 'Invalid API key. Please check and try again.' 
+          });
+        }
+      }
+      
+      // For other errors, assume it's a server or network issue
+      throw error;
+    }
+  } catch (error) {
+    console.error('Error validating OpenAI API key:', error);
+    return res.status(500).json({ 
+      valid: false, 
+      message: 'Failed to validate API key. Please try again later.' 
+    });
+  }
 });
 
 // Get script analysis job status
