@@ -1,7 +1,7 @@
 import express, { Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { minioClient, STREAM_PDF_CHUNKS, STREAM_SCRIPT_ANALYSIS, MINIO_BUCKET, redisClient } from './clients';
-import { jobsCollection, scenesCollection } from './clients/mongoClient';
+import { jobsCollection } from './clients/mongoClient';
 import axios from 'axios';
 
 const router: Router = express.Router();
@@ -25,29 +25,28 @@ router.post('/api/validate-openai-key', async (req, res) => {
     
     // Validate the API key by making a simple request to OpenAI API
     try {
-      const response = await axios.get('https://api.openai.com/v1/models', {
+      await axios.get('https://api.openai.com/v1/models', {
         headers: {
           'Authorization': `Bearer ${apiKey}`,
           'Content-Type': 'application/json'
         }
       });
-      
       // If we get here, the API key is valid
       return res.status(200).json({ 
         valid: true,
         message: 'API key is valid'
       });
-    } catch (error) {
+    } catch (error: unknown) {
       // Check if it's an authentication error
-      if (axios.isAxiosError(error) && error.response) {
-        if (error.response.status === 401) {
+      const axiosError = error as any;
+      if (axiosError && axiosError.name === 'AxiosError' && axiosError.response) {
+        if (axiosError.response.status === 401) {
           return res.status(200).json({ 
             valid: false, 
             message: 'Invalid API key. Please check and try again.' 
           });
         }
       }
-      
       // For other errors, assume it's a server or network issue
       throw error;
     }
@@ -146,7 +145,7 @@ router.post('/api/analyze/script', async (req, res) => {
     
     await redisClient.xAdd(STREAM_PDF_CHUNKS, '*', messageRecord);
     
-    console.log(`Published message to Redis stream for job: ${jobId}`);
+    console.error(`Published message to Redis stream for job: ${jobId}`);
     
     res.status(202).json({
       status: 'processing',
