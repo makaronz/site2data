@@ -9,13 +9,15 @@ services:
     volumes:
       - ./frontend:/app/frontend
     environment:
-      - VITE_API_URL=http://api:${API_PORT:-3000}/trpc
-      - VITE_SSE_URL=http://api:${API_PORT:-3000}/sse
+      - VITE_API_URL=http://api:${API_PORT:-3002}/trpc
+      - VITE_SSE_URL=http://api:${API_PORT:-3002}/sse
       - CHOKIDAR_USEPOLLING=true
-    depends_on:
-      - api
     networks:
       - site2data_net
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - api
 
   # API Gateway (Node.js + Express + tRPC)
   api:
@@ -23,13 +25,13 @@ services:
       context: ./apps/api
       dockerfile: Dockerfile
     ports:
-      - "${API_PORT:-3000}:3000"
+      - "${API_PORT:-3002}:3000"
     volumes:
       - ./apps/api:/app
       - /app/node_modules # Mount node_modules from container
     environment:
       - NODE_ENV=development
-      - PORT=${API_PORT:-3000}
+      - PORT=${API_PORT:-3002}
       - REDIS_URL=redis://redis:6379
       - MONGO_URI=mongodb://mongo:27017/site2data
       - MINIO_ENDPOINT=minio
@@ -39,13 +41,15 @@ services:
       - MINIO_BUCKET=${MINIO_BUCKET:-scripts}
       - WEAVIATE_URL=http://weaviate:8080
       - OPENAI_API_KEY=${OPENAI_API_KEY} # Needs to be set in .env
+    networks:
+      - site2data_net
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       - redis
       - mongo
       - minio
       - weaviate
-    networks:
-      - site2data_net
 
   # Worker JS (Node.js)
   worker-js:

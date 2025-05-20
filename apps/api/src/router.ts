@@ -1,17 +1,17 @@
-import express, { Router } from 'express';
+import express from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { minioClient, STREAM_PDF_CHUNKS, STREAM_SCRIPT_ANALYSIS, MINIO_BUCKET, redisClient } from './clients';
 import { jobsCollection } from './clients/mongoClient';
 import axios from 'axios';
 
-const router: Router = express.Router();
+const router = express.Router();
 
 // Health check endpoint
-router.get('/health', async (req, res) => {
+router.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok' });
 });
 
-// Validate OpenAI API key
+// Validate OpenAI API key endpoint
 router.post('/api/validate-openai-key', async (req, res) => {
   try {
     const { apiKey } = req.body;

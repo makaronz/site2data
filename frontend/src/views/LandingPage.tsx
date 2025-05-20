@@ -97,6 +97,8 @@ const LandingPage: React.FC = () => {
     setKeyValidationError(null);
     
     try {
+      console.log('Validating API key with endpoint: /api/validate-openai-key');
+      
       // Call API to validate OpenAI key
       const response = await fetch('/api/validate-openai-key', {
         method: 'POST',
@@ -106,19 +108,33 @@ const LandingPage: React.FC = () => {
         body: JSON.stringify({ apiKey: key }),
       });
       
-      const data = await response.json();
+      console.log('Response status:', response.status);
       
-      if (response.ok && data.valid) {
+      // Try to read the response as text first
+      const responseText = await response.text();
+      console.log('Response text:', responseText);
+      
+      // Then try to parse it as JSON
+      let data;
+      try {
+        data = JSON.parse(responseText);
+        console.log('Parsed response data:', data);
+      } catch (parseError) {
+        console.error('Failed to parse JSON response:', parseError);
+        throw new Error(`Invalid response format: ${responseText}`);
+      }
+      
+      if (response.ok && data && data.valid) {
         // Store valid key in localStorage
         localStorage.setItem('openai_api_key', key);
         // Move to next step
         setActiveStep(1);
       } else {
-        setKeyValidationError(data.message || 'Invalid API key. Please check and try again.');
+        setKeyValidationError(data?.message || 'Invalid API key. Please check and try again.');
       }
     } catch (error) {
-      setKeyValidationError('Network error. Please try again later.');
       console.error('API key validation error:', error);
+      setKeyValidationError(`Error: ${error instanceof Error ? error.message : 'Unknown error occurred'}`);
     } finally {
       setIsValidatingKey(false);
     }
