@@ -18,6 +18,7 @@ import { WebSocketClient } from './types/websocket';
 // Import the new rate limiter middleware
 import { standardLimiter, authLimiter, intensiveLimiter } from './middleware/rateLimiter';
 import helmet from 'helmet';
+import validateOpenAiKey from './routes/validateOpenAiKey';
 
 dotenv.config();
 const app = express();
@@ -111,6 +112,7 @@ app.use((req: express.Request, res: express.Response, next: express.NextFunction
 
 // Routes
 app.use('/api', pdfRoutes);
+app.use('/api', validateOpenAiKey);
 app.use('/api/script', openaiAuth, scriptAnalysisRoutes);
 app.use('/api/upload-pdf', pdfRoutes);
 app.use('/api/test', openaiAuth, apiTestRoutes);
@@ -156,10 +158,10 @@ const interval = setInterval(() => {
 
 // Error handling middleware
 app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  console.error('Error:', err);
+  console.error('Global error handler:', err);
   res.status(500).json({
     success: false,
-    message: 'Wystąpił błąd na serwerze'
+    message: err.message || 'Internal server error'
   });
 });
 

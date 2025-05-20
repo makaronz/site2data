@@ -10,6 +10,7 @@ const ShootingPlanner = React.lazy(() => import('../views/ShootingPlanner'));
 const ProductionRisks = React.lazy(() => import('../views/ProductionRisks'));
 const PropsMatrix = React.lazy(() => import('../views/PropsMatrix'));
 const NarrativePlayback = React.lazy(() => import('../views/NarrativePlayback'));
+const LandingPage = React.lazy(() => import('../views/LandingPage'));
 
 /**
  * Main application router
@@ -21,10 +22,8 @@ const AppRouter: React.FC = () => {
     <React.Suspense fallback={<div>Loading...</div>}>
       <AppLayout>
         <Routes>
-          {/* Redirect root to scene breakdown */}
-          <Route path="/" element={<Navigate to="/scene-breakdown" replace />} />
-          
-          {/* Role-based views */}
+          {/* Landing page jako domyślna strona */}
+          <Route path="/" element={<LandingPage />} />
           <Route path="/scene-breakdown" element={<SceneBreakdown />} />
           <Route path="/character-map" element={<CharacterMap />} />
           <Route path="/location-planner" element={<LocationPlanner />} />
