@@ -38,14 +38,18 @@ router.post('/api/validate-openai-key', async (req, res) => {
       });
     } catch (error: unknown) {
       // Check if it's an authentication error
-      const axiosError = error as any;
-      if (axiosError && axiosError.name === 'AxiosError' && axiosError.response) {
-        if (axiosError.response.status === 401) {
-          return res.status(200).json({ 
-            valid: false, 
-            message: 'Invalid API key. Please check and try again.' 
-          });
-        }
+      if (
+        typeof error === 'object' &&
+        error !== null &&
+        'name' in error &&
+        (error as { name: string }).name === 'AxiosError' &&
+        'response' in error &&
+        (error as { response?: { status?: number } }).response?.status === 401
+      ) {
+        return res.status(200).json({
+          valid: false,
+          message: 'Invalid API key. Please check and try again.'
+        });
       }
       // For other errors, assume it's a server or network issue
       throw error;
