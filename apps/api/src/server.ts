@@ -19,7 +19,7 @@ app.use(cors());
 app.use(express.json());
 
 // Use router for API routes
-app.use(router);
+app.use('/api', router);
 
 // Create HTTP server
 const server = createServer(app);
