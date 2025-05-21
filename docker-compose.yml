@@ -9,8 +9,9 @@ services:
     volumes:
       - ./frontend:/app/frontend
     environment:
-      - VITE_API_URL=http://api:${API_PORT:-3002}/trpc
-      - VITE_SSE_URL=http://api:${API_PORT:-3002}/sse
+      - VITE_API_GATEWAY_URL=http://api:3000
+      - VITE_WEBSOCKET_URL=ws://api:3000
+      - VITE_SSE_URL=http://api:3000/sse
       - CHOKIDAR_USEPOLLING=true
     networks:
       - site2data_net
