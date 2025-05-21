@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { Box, Button, Paper, Typography, Snackbar, Alert, LinearProgress, Stack } from '@mui/material';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
+import apiClient from '../api/apiClient';
 
 interface FileUploaderProps {
   onUploadSuccess?: (file: File, response: any) => void;
@@ -37,7 +38,7 @@ const FileUploader: React.FC<FileUploaderProps> = ({
     message: '',
     severity: 'success',
   });
-  const [progress, setProgress] = useState<number>(0);
+  const [uploadProgress, setUploadProgress] = useState<number>(0);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] || null;
@@ -71,32 +72,55 @@ const FileUploader: React.FC<FileUploaderProps> = ({
       return;
     }
     setIsUploading(true);
-    setProgress(0);
+    setUploadProgress(0);
+
+    const handleLocalUploadProgress = (progressEvent: any) => {
+      const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+      setUploadProgress(percentCompleted);
+    };
+
     try {
-      const formData = new FormData();
-      formData.append(fieldName, selectedFile);
-      formData.append('type', selectedFile.type === 'application/pdf' ? 'pdf' : 'txt');
-      if (model) formData.append('model', model);
-      const headers: Record<string, string> = {};
-      if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        body: formData,
-        headers,
-      });
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data?.error || 'Błąd podczas wysyłania pliku.');
+      if (requireApiKey && !apiKey) {
+        throw new Error('Podaj klucz API przed wysłaniem pliku.');
       }
-      setSnackbar({ open: true, message: 'Plik przesłany! Analiza rozpoczęta.', severity: 'success' });
-      setSelectedFile(null);
-      if (onUploadSuccess) onUploadSuccess(selectedFile, data);
+
+      if (endpoint === '/api/script/analyze' || endpoint === '/api/job') {
+        const analysisResponse = await apiClient.uploadScriptAndStartAnalysis(
+          selectedFile, 
+          handleLocalUploadProgress
+        );
+        setSnackbar({ open: true, message: `Rozpoczęto analizę (Job ID: ${analysisResponse.jobId}).`, severity: 'success' });
+        setSelectedFile(null);
+        if (onUploadSuccess) onUploadSuccess(selectedFile, analysisResponse);
+      } else {
+        const formData = new FormData();
+        formData.append(fieldName, selectedFile);
+        formData.append('type', selectedFile.type === 'application/pdf' ? 'pdf' : 'txt');
+        if (model) formData.append('model', model);
+        const headers: Record<string, string> = {};
+        if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
+        
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          body: formData,
+          headers,
+        });
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data?.error || 'Błąd podczas wysyłania pliku (stara ścieżka).');
+        }
+        setSnackbar({ open: true, message: 'Plik przesłany (stara ścieżka)! Analiza rozpoczęta.', severity: 'success' });
+        setSelectedFile(null);
+        if (onUploadSuccess) onUploadSuccess(selectedFile, data);
+      }
     } catch (err: any) {
       setSnackbar({ open: true, message: err.message || 'Błąd sieci.', severity: 'error' });
       if (onUploadError) onUploadError(err.message || 'Błąd sieci.');
     } finally {
       setIsUploading(false);
-      setProgress(0);
+      if (endpoint !== '/api/script/analyze' && endpoint !== '/api/job') {
+        setUploadProgress(0);
+      }
     }
   };
 
@@ -149,7 +173,7 @@ const FileUploader: React.FC<FileUploaderProps> = ({
               Podaj klucz API, aby przesłać plik do analizy.
             </Alert>
           )}
-          {isUploading && <LinearProgress aria-label="Wysyłanie pliku" />}
+          {isUploading && <LinearProgress variant="determinate" value={uploadProgress} aria-label="Wysyłanie pliku" />}
           <Alert severity="info">
             Dozwolone pliki: <b>PDF</b> lub <b>TXT</b>, maksymalnie 10MB.
           </Alert>

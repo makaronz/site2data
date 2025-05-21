@@ -12,7 +12,12 @@
     "isolatedModules": true,
     "noEmit": true,
     "composite": false,
-    "declaration": false
+    "declaration": false,
+    "baseUrl": ".",
+    "paths": {
+      "@site2data/schemas": ["packages/schemas/src"],
+      "@site2data/schemas/*": ["packages/schemas/src/*"]
+    }
   },
   "exclude": ["node_modules", "dist", "**/*.test.ts"]
 } 

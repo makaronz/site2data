@@ -211,3 +211,30 @@ MIT License. See [LICENSE](LICENSE).
 
 All film titles and character names used in examples, tests, and data files should be fictional and anonymized. Any resemblance to real films or persons is coincidental. This ensures compliance with copyright and privacy requirements for demo and test data.
 
+## Uruchamianie aplikacji
+
+Aplikacja została skonfigurowana tak, aby zawsze działać na określonych portach. Możesz ją uruchomić za pomocą przygotowanego skryptu:
+
+```bash
+# Uruchom całą aplikację jednym poleceniem
+npm start
+```
+
+Skrypt automatycznie:
+1. Sprawdzi dostępność wymaganych portów
+2. Zwolni zajęte porty, jeśli to konieczne
+3. Uruchomi backend na porcie 3001
+4. Uruchomi frontend na porcie 5173
+5. Skonfiguruje odpowiednie proxy dla komunikacji między komponentami
+
+### Konfiguracja portów
+
+Możesz dostosować porty, edytując plik `.env.ports`:
+
+```
+# Porty aplikacji
+PORT=3001
+VITE_PORT=5173
+API_URL=http://localhost:3001
+```
+

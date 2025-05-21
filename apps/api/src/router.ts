@@ -3,6 +3,14 @@ import { v4 as uuidv4 } from 'uuid';
 import { minioClient, STREAM_PDF_CHUNKS, STREAM_SCRIPT_ANALYSIS, MINIO_BUCKET, redisClient } from './clients';
 import { jobsCollection } from './clients/mongoClient';
 import axios from 'axios';
+import { 
+  PresignedUrlRequestSchema, 
+  PresignedUrlResponse,
+  NotifyUploadCompleteResponse,
+  JobStatusSchema, 
+  Job,
+  PresignedUrlRequest,
+} from '@site2data/schemas';
 
 const router = express.Router();
 
@@ -99,62 +107,91 @@ router.get('/api/jobs', async (req, res) => {
 });
 
 // Generate presigned URL for script upload
-router.post('/api/upload/script', async (req, res) => {
+router.post('/api/jobs/presigned-url', async (req, res) => {
   try {
-    const { filename } = req.body;
-    
-    if (!filename) {
-      res.status(400).json({ error: 'Filename is required' });
-      return;
+    const validationResult = PresignedUrlRequestSchema.safeParse(req.body);
+    if (!validationResult.success) {
+      return res.status(400).json({ error: 'Invalid request body', details: validationResult.error.format() });
     }
-    
+
+    const { filename }: PresignedUrlRequest = validationResult.data;
     const objectKey = `${uuidv4()}-${filename}`;
-    
-    // Generate presigned URL for file upload
+
     const presignedUrl = await minioClient.presignedPutObject(
       MINIO_BUCKET,
       objectKey,
       60 * 60 // 1 hour expiry
     );
     
-    // Create job record in MongoDB
-    const jobId = await createJobRecord(filename, objectKey);
-    
-    res.status(200).json({
+    const jobToInsert: Omit<Job, '_id'> = {
+      filename: objectKey, 
+      originalFilename: filename, 
+      objectKey,
+      status: JobStatusSchema.Enum.created,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      progress: 0,
+      statusMessage: 'Job created, awaiting upload.',
+    };
+
+    const result = await jobsCollection.insertOne(jobToInsert);
+    const jobId = result.insertedId.toString();
+
+    const responsePayload: PresignedUrlResponse = {
       uploadUrl: presignedUrl,
       jobId,
-      objectKey
-    });
+      objectKey,
+    };
+    res.status(200).json(responsePayload);
   } catch (error) {
     console.error('Error generating upload URL:', error);
     res.status(500).json({ error: 'Failed to generate upload URL' });
   }
 });
 
-// Start script analysis process
-router.post('/api/analyze/script', async (req, res) => {
+// Notify upload complete and start script analysis
+router.post('/api/jobs/:jobId/notify-upload-complete', async (req, res) => {
   try {
-    const { jobId, objectKey } = req.body;
-    
-    if (!jobId || !objectKey) {
-      res.status(400).json({ error: 'JobId and objectKey are required' });
-      return;
+    const { jobId } = req.params;
+
+    const jobDocument = await jobsCollection.findOne({ _id: jobId });
+    if (!jobDocument) {
+      return res.status(404).json({ error: `Job with ID ${jobId} not found` });
     }
-    
-    // 1. Update job status
-    await updateJobStatus(jobId, 'processing');
-    
-    // 2. Publish message to Redis stream for processing
-    const messageRecord = { jobId, objectKey };
-    
+    // Validate current job status before proceeding
+    if (jobDocument.status !== JobStatusSchema.Enum.created && jobDocument.status !== JobStatusSchema.Enum.uploading) {
+        return res.status(409).json({ error: `Job ${jobId} is not in a state to start analysis (current state: ${jobDocument.status})`});
+    }
+
+    await jobsCollection.updateOne(
+      { _id: jobId },
+      { 
+        $set: { 
+          status: JobStatusSchema.Enum.uploaded,
+          updatedAt: new Date() 
+        } 
+      }
+    );
+    await jobsCollection.updateOne(
+      { _id: jobId },
+      { 
+        $set: { 
+          status: JobStatusSchema.Enum.queued_for_chunking,
+          updatedAt: new Date() 
+        } 
+      }
+    );
+
+    const messageRecord = { jobId, objectKey: jobDocument.objectKey };
     await redisClient.xAdd(STREAM_PDF_CHUNKS, '*', messageRecord);
-    
-    console.error(`Published message to Redis stream for job: ${jobId}`);
-    
-    res.status(202).json({
-      status: 'processing',
-      jobId
-    });
+    console.log(`Published message to Redis stream ${STREAM_PDF_CHUNKS} for job: ${jobId}`);
+
+    const responsePayload: NotifyUploadCompleteResponse = {
+      status: JobStatusSchema.Enum.queued_for_chunking,
+      jobId,
+      message: 'Script queued for chunking and analysis.',
+    };
+    res.status(202).json(responsePayload);
   } catch (error) {
     console.error('Error starting script analysis:', error);
     res.status(500).json({ error: 'Failed to start script analysis' });
@@ -178,7 +215,7 @@ router.get('/api/analysis/:jobId', async (req, res) => {
       return;
     }
     
-    if (job.status !== 'completed') {
+    if (job.status !== JobStatusSchema.Enum.completed) {
       res.status(202).json({ 
         status: job.status,
         message: 'Analysis not yet complete'
@@ -212,7 +249,7 @@ router.post('/api/process/pdf-chunks', async (req, res) => {
       { 
         $set: { 
           chunks,
-          status: 'chunks_extracted',
+          status: JobStatusSchema.Enum.chunks_extracted,
           updatedAt: new Date() 
         } 
       }

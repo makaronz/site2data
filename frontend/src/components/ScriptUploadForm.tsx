@@ -11,6 +11,7 @@ import {
   LinearProgress,
 } from '@mui/material';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
+import apiClient from '../../api/apiClient';
 
 interface ScriptUploadFormProps {
   onJobCreated?: (jobId: string, fileName: string) => void;
@@ -56,51 +57,32 @@ export const ScriptUploadForm: React.FC<ScriptUploadFormProps> = ({ onJobCreated
     setIsUploading(true);
     setUploadProgress(0);
 
-    let progressInterval: NodeJS.Timeout | null = null;
-    if (selectedFile) {
-      setUploadProgress(10);
-      progressInterval = setInterval(() => {
-        setUploadProgress(prevProgress => {
-          if (prevProgress >= 90) {
-            if (progressInterval) clearInterval(progressInterval);
-            return 90;
-          }
-          return prevProgress + 5;
-        });
-      }, 400);
-    }
+    const handleUploadProgress = (progressEvent: any) => {
+      const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+      setUploadProgress(percentCompleted);
+    };
 
     try {
-      const formData = new FormData();
-      formData.append('file', selectedFile);
-
-      const response = await fetch('/api/job', {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error?.error || 'Błąd podczas wysyłania pliku.');
-      }
-
-      const data = await response.json();
-      if (progressInterval) clearInterval(progressInterval);
-      setUploadProgress(100);
+      const analysisResponse = await apiClient.uploadScriptAndStartAnalysis(
+        selectedFile,
+        handleUploadProgress
+      );
 
       setSnackbar({ 
         open: true, 
-        message: "Analiza zakończona. Przejdź do menu 'Analiza scenariusza'.", 
+        message: `Rozpoczęto analizę (Job ID: ${analysisResponse.jobId}). Możesz śledzić postęp.`, 
         severity: 'success' 
       });
 
       const originalFileName = selectedFile.name;
       setSelectedFile(null);
-      if (onJobCreated && data.jobId) onJobCreated(data.jobId, originalFileName);
+      if (onJobCreated && analysisResponse.jobId) {
+        onJobCreated(analysisResponse.jobId, originalFileName);
+      }
     } catch (err: any) {
-      if (progressInterval) clearInterval(progressInterval);
       setUploadProgress(0);
-      setSnackbar({ open: true, message: err.message || 'Błąd sieci.', severity: 'error' });
+      setSnackbar({ open: true, message: err.message || 'Błąd podczas wysyłania lub rozpoczynania analizy.', severity: 'error' });
+    } finally {
       setIsUploading(false);
     }
   };
@@ -110,10 +92,6 @@ export const ScriptUploadForm: React.FC<ScriptUploadFormProps> = ({ onJobCreated
       return;
     }
     setSnackbar(s => ({ ...s, open: false }));
-    if (snackbar.message === "Analiza zakończona. Przejdź do menu 'Analiza scenariusza'.") {
-      setIsUploading(false);
-      setUploadProgress(0);
-    }
   };
 
   return (
@@ -156,13 +134,13 @@ export const ScriptUploadForm: React.FC<ScriptUploadFormProps> = ({ onJobCreated
               disabled={isUploading || !selectedFile}
               aria-label="Wyślij plik do analizy"
             >
-              {isUploading ? 'Trwa wysyłanie i analiza scenariusza...' : 'Prześlij i analizuj scenariusz'}
+              {isUploading ? 'Trwa wysyłanie scenariusza...' : 'Prześlij i analizuj scenariusz'}
             </Button>
             {isUploading && (
               <Box sx={{ width: '100%', textAlign: 'center', mt: 1 }}>
-                <LinearProgress variant="determinate" value={uploadProgress} aria-label="Postęp wysyłania i analizy" />
+                <LinearProgress variant="determinate" value={uploadProgress} aria-label="Postęp wysyłania" />
                 <Typography variant="body2" sx={{ mt: 1 }}>
-                  {uploadProgress < 100 ? 'Trwa wysyłanie i analiza scenariusza…' : 'Analiza zakończona!'}
+                  {uploadProgress < 100 ? `Wysyłanie: ${uploadProgress}%` : 'Plik wysłany, rozpoczynanie analizy...'}
                 </Typography>
               </Box>
             )}

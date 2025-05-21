@@ -1,5 +1,8 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
-import { WebSocketMessage } from 'shared-types';
+import {
+  WebSocketMessage,
+  WebSocketMessageSchema,
+} from '../schemas';
 
 interface WebSocketContextType {
   connected: boolean;
@@ -46,28 +49,31 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
     
     try {
       setConnectionStatus('connecting');
-      wsRef.current = new WebSocket(url);
+      const wsUrl = authToken ? `${url}?token=${authToken}` : url;
+      wsRef.current = new WebSocket(wsUrl);
       
       wsRef.current.onopen = () => {
         setConnected(true);
         setConnectionStatus('connected');
         reconnectAttemptsRef.current = 0;
         
-        // Send authentication if token is provided
-        if (authToken) {
-          wsRef.current?.send(JSON.stringify({
-            type: 'AUTH',
-            token: authToken
-          }));
-        }
+        // TODO: Po udanym połączeniu, można wysłać wiadomość subskrypcji dla konkretnego jobId, jeśli jest znany
+        // np. sendMessage({ type: 'SUBSCRIBE_JOB', jobId: 'aktualnyJobId' } as any ); 
+        // To wymaga zdefiniowania odpowiedniego schematu dla wiadomości SUBSCRIBE_JOB w lokalnych schematach
       };
       
       wsRef.current.onmessage = (event) => {
         try {
-          const message = JSON.parse(event.data) as WebSocketMessage;
-          setLastMessage(message);
+          const rawMessage = JSON.parse(event.data as string);
+          const validationResult = WebSocketMessageSchema.safeParse(rawMessage);
+          
+          if (validationResult.success) {
+            setLastMessage(validationResult.data);
+          } else {
+            console.error('Failed to parse or validate WebSocket message:', validationResult.error);
+          }
         } catch (err) {
-          console.error('Failed to parse WebSocket message:', err);
+          console.error('Error processing WebSocket message data:', err);
         }
       };
       
@@ -75,7 +81,6 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
         setConnected(false);
         setConnectionStatus('disconnected');
         
-        // Attempt reconnection
         if (reconnectAttemptsRef.current < maxReconnectAttempts) {
           reconnectTimeoutRef.current = setTimeout(() => {
             reconnectAttemptsRef.current += 1;
@@ -84,12 +89,15 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
         }
       };
       
-      wsRef.current.onerror = (err) => {
-        setError(err as Error);
+      wsRef.current.onerror = (event: Event) => {
+        console.error('WebSocket error:', event);
+        const genericError = new Error('WebSocket connection error');
+        setError(genericError);
         setConnectionStatus('error');
       };
     } catch (err) {
-      setError(err as Error);
+      const errorToSet = err instanceof Error ? err : new Error('Failed to connect WebSocket');
+      setError(errorToSet);
       setConnectionStatus('error');
     }
   };
@@ -114,7 +122,6 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
       wsRef.current.send(JSON.stringify(message));
     } else {
       console.error('WebSocket is not connected');
-      // Optionally queue messages for when connection is established
     }
   };
   
@@ -124,7 +131,8 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
     return () => {
       disconnect();
     };
-  }, [url, authToken]); // Reconnect if URL or auth token changes
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [url, authToken]);
   
   return (
     <WebSocketContext.Provider value={{ connected, sendMessage, lastMessage, connectionStatus, error }}>

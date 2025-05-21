@@ -8,6 +8,7 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
+    "@site2data/schemas": "workspace:*",
     "@trpc/server": "^10.43.0",
     "@types/cors": "^2.8.17",
     "@types/dotenv": "^8.2.0",

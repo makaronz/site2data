@@ -20,6 +20,7 @@
 		"@mui/material": "^7.1.0",
 		"@react-sigma/core": "^3.4.2",
 		"@react-sigma/layout-forceatlas2": "^3.4.2",
+		"@site2data/schemas": "workspace:*",
 		"@types/axios": "^0.9.36",
 		"@types/node": "^20.11.19",
 		"@types/react": "^18.2.55",
@@ -63,6 +64,7 @@
 		"swagger-ui-express": "^5.0.1",
 		"typescript": "^5.3.3",
 		"vite": "^6.3.3",
+		"vite-tsconfig-paths": "^5.1.4",
 		"vitest": "^3.1.4",
 		"zod": "^3.25.7"
 	},

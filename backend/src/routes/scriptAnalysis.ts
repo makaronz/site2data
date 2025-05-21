@@ -400,6 +400,89 @@ router.post('/analyze', upload.single('script'), validateRequest({ body: validat
   }
 });
 
+// Nowy endpoint dla /api/job
+router.post('/job', upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'Brak pliku w żądaniu',
+        error: 'FILE_MISSING'
+      });
+    }
+    console.log('Plik otrzymany w /api/job:', (req.file as MulterFile).originalname);
+    
+    try {
+      // Sanitize the file path to prevent path traversal
+      const filePath = pathSanitizer.sanitizePath((req.file as MulterFile).path, UPLOAD_DIR);
+      
+      let fileContent: string;
+      const fileType = req.file.mimetype.includes('pdf') ? 'pdf' : 'text';
+      
+      if (fileType === 'pdf') {
+        // Obsługa plików PDF
+        const dataBuffer = await pathSanitizer.safeReadFile(filePath);
+        const data = await pdf(dataBuffer);
+        fileContent = data.text;
+      } else {
+        // Obsługa plików tekstowych
+        fileContent = (await pathSanitizer.safeReadFile(filePath)).toString('utf-8');
+      }
+      
+      // Prosty test czy plik jest czytelny
+      if (!fileContent || fileContent.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Plik jest pusty lub nie może zostać odczytany',
+          error: 'EMPTY_FILE'
+        });
+      }
+      
+      // Generuj unikalne ID dla zadania
+      const jobId = Date.now().toString();
+      
+      console.log('Rozpoczynam analizę pliku w /api/job...');
+      const result = await scriptAnalysisService.analyzeScript({
+        content: fileContent,
+        type: fileType,
+        filename: (req.file as MulterFile).originalname
+      });
+      
+      console.log('Analiza w /api/job zakończona pomyślnie');
+      
+      // Zwracamy pomyślną odpowiedź z ID zadania
+      res.json({
+        success: true,
+        message: 'Plik został pomyślnie przesłany i przeanalizowany',
+        jobId: jobId
+      });
+    } catch (readError) {
+      console.error('Błąd podczas odczytu pliku w /api/job:', readError);
+      return res.status(500).json({
+        success: false,
+        message: 'Nie można odczytać przesłanego pliku',
+        error: 'FILE_READ_ERROR'
+      });
+    } finally {
+      // Usuń plik po analizie - safely using path sanitizer
+      try {
+        const filePath = pathSanitizer.sanitizePath((req.file as MulterFile).path, UPLOAD_DIR);
+        await pathSanitizer.safeDeleteFile(filePath);
+        console.log('Plik usunięty:', filePath);
+      } catch (unlinkError) {
+        console.error('Błąd podczas usuwania pliku:', unlinkError);
+      }
+    }
+  } catch (error) {
+    console.error('Błąd podczas analizy skryptu w /api/job:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Wystąpił błąd podczas analizy skryptu',
+      error: 'ANALYSIS_ERROR'
+    });
+  }
+});
+
 // GET /api/script/:id/graph/nodes
 router.get('/api/script/:id/graph/nodes', validateRequest({ params: validationSchemas.id }), async (req, res) => {
   try {

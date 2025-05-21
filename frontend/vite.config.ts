@@ -1,26 +1,43 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import path from 'path';
+import tsconfigPaths from 'vite-tsconfig-paths';
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), tsconfigPaths()],
+  resolve: {
+    alias: {
+      // Alias @site2data/schemas jest teraz obsługiwany przez vite-tsconfig-paths
+      // na podstawie wpisów w tsconfig.json, więc możemy go tutaj usunąć lub zakomentować,
+      // aby uniknąć potencjalnych konfliktów. Na razie zostawię zakomentowany.
+      // '@site2data/schemas': path.resolve(__dirname, '../packages/schemas/src/index.ts'),
+      '@/': path.resolve(__dirname, './src'),
+    },
+  },
   server: {
+    port: parseInt(process.env.VITE_FRONTEND_PORT || '5173'),
     proxy: {
       '/api': {
-        target: 'http://api:3002',
+        target: process.env.VITE_API_GATEWAY_URL || 'http://localhost:3001',
         changeOrigin: true,
         secure: false,
-        configure: (proxy, _options) => {
-          proxy.on('error', (err, _req, _res) => {
-            console.log('proxy error', err);
-          });
-          proxy.on('proxyReq', (proxyReq, req, _res) => {
-            console.log('Sending Request:', req.method, req.url);
-          });
-          proxy.on('proxyRes', (proxyRes, req, _res) => {
-            console.log('Received Response:', proxyRes.statusCode, req.url);
-          });
-        }
-      }
-    }
-  }
+      },
+      '/ws': {
+        target: process.env.VITE_WEBSOCKET_URL || 'ws://localhost:3001',
+        ws: true,
+        changeOrigin: true,
+      },
+    },
+    watch: {
+      usePolling: !!process.env.VITE_USE_POLLING,
+    },
+    host: true,
+    strictPort: true,
+  },
+  build: {
+    outDir: 'build',
+  },
+  optimizeDeps: {
+    include: ['@emotion/react', '@emotion/styled', '@mui/material/Tooltip'],
+  },
 }); 

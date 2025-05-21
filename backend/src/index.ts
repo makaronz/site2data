@@ -23,7 +23,7 @@ import validateOpenAiKey from './routes/validateOpenAiKey';
 dotenv.config();
 const app = express();
 const server = createServer(app);
-const PORT = 5001;
+const PORT = process.env.PORT || 5001;
 
 // Inicjalizacja dokumentacji Swagger
 const __filename = fileURLToPath(import.meta.url);
@@ -116,6 +116,7 @@ app.use('/api', validateOpenAiKey);
 app.use('/api/script', openaiAuth, scriptAnalysisRoutes);
 app.use('/api/upload-pdf', pdfRoutes);
 app.use('/api/test', openaiAuth, apiTestRoutes);
+app.use('/api/job', scriptAnalysisRoutes);
 
 // WebSocket connection handling
 wss.on('connection', (ws: WebSocketClient) => {

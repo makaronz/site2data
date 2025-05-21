@@ -1,6 +1,13 @@
 import React from 'react';
 import { Box, Typography, CircularProgress } from '@mui/material';
 import axios from 'axios';
+// Importy ze wspólnych schematów, kopie lokalne z pakietu
+import { 
+  PresignedUrlRequest, 
+  PresignedUrlResponse, 
+  NotifyUploadCompleteResponse,
+  NotifyUploadCompleteRequest
+} from '../schemas/job.schema';
 
 /**
  * API client for ai_CineHub backend
@@ -16,10 +23,11 @@ const apiClient = {
   /**
    * Get all scenes
    */
-  getScenes: async () => {
+  getScenes: async (jobId?: string) => {
     try {
-      const response = await axios.get(`${apiClient.baseURL}/scenes`);
-      return response.data.scenes || [];
+      const path = jobId ? `${apiClient.baseURL}/jobs/${jobId}/analysis/scenes` : `${apiClient.baseURL}/scenes`;
+      const response = await axios.get(path);
+      return response.data.scenes || response.data || [];
     } catch (error) {
       console.error('Error fetching scenes:', error);
       throw error;
@@ -29,9 +37,10 @@ const apiClient = {
   /**
    * Get a specific scene by ID
    */
-  getSceneById: async (id: string) => {
+  getSceneById: async (id: string, jobId?: string) => {
     try {
-      const response = await axios.get(`${apiClient.baseURL}/scenes/${id}`);
+      const path = jobId ? `${apiClient.baseURL}/jobs/${jobId}/analysis/scenes/${id}` : `${apiClient.baseURL}/scenes/${id}`;
+      const response = await axios.get(path);
       return response.data;
     } catch (error) {
       console.error(`Error fetching scene ${id}:`, error);
@@ -42,9 +51,9 @@ const apiClient = {
   /**
    * Get character graph data
    */
-  getCharacterGraph: async () => {
+  getCharacterGraph: async (jobId: string) => {
     try {
-      const response = await axios.get(`${apiClient.baseURL}/graph/characters`);
+      const response = await axios.get(`${apiClient.baseURL}/jobs/${jobId}/analysis/graph-data`);
       return response.data;
     } catch (error) {
       console.error('Error fetching character graph:', error);
@@ -55,9 +64,9 @@ const apiClient = {
   /**
    * Get character graph data for a specific scene
    */
-  getSceneCharacterGraph: async (sceneId: string) => {
+  getSceneCharacterGraph: async (jobId: string, sceneId: string) => {
     try {
-      const response = await axios.get(`${apiClient.baseURL}/graph/scene/${sceneId}`);
+      const response = await axios.get(`${apiClient.baseURL}/jobs/${jobId}/analysis/scenes/${sceneId}/graph`);
       return response.data;
     } catch (error) {
       console.error(`Error fetching character graph for scene ${sceneId}:`, error);
@@ -68,9 +77,9 @@ const apiClient = {
   /**
    * Get all locations
    */
-  getLocations: async () => {
+  getLocations: async (jobId: string) => {
     try {
-      const response = await axios.get(`${apiClient.baseURL}/locations`);
+      const response = await axios.get(`${apiClient.baseURL}/jobs/${jobId}/analysis/locations`);
       return response.data;
     } catch (error) {
       console.error('Error fetching locations:', error);
@@ -81,9 +90,9 @@ const apiClient = {
   /**
    * Get shooting schedule
    */
-  getSchedule: async () => {
+  getSchedule: async (jobId: string) => {
     try {
-      const response = await axios.get(`${apiClient.baseURL}/schedule`);
+      const response = await axios.get(`${apiClient.baseURL}/jobs/${jobId}/analysis/schedule`);
       return response.data;
     } catch (error) {
       console.error('Error fetching schedule:', error);
@@ -94,9 +103,9 @@ const apiClient = {
   /**
    * Get all props
    */
-  getProps: async () => {
+  getProps: async (jobId: string) => {
     try {
-      const response = await axios.get(`${apiClient.baseURL}/props`);
+      const response = await axios.get(`${apiClient.baseURL}/jobs/${jobId}/analysis/props`);
       return response.data;
     } catch (error) {
       console.error('Error fetching props:', error);
@@ -107,15 +116,71 @@ const apiClient = {
   /**
    * Get production risks
    */
-  getRisks: async () => {
+  getRisks: async (jobId: string) => {
     try {
-      const response = await axios.get(`${apiClient.baseURL}/scenes/risks`);
+      const response = await axios.get(`${apiClient.baseURL}/jobs/${jobId}/analysis/risks`);
       return response.data;
     } catch (error) {
       console.error('Error fetching risks:', error);
       throw error;
     }
-  }
+  },
+
+  /**
+   * Step 1: Request a presigned URL for file upload.
+   */
+  async getPresignedUploadUrl(requestData: PresignedUrlRequest): Promise<PresignedUrlResponse> {
+    try {
+      const response = await axios.post<PresignedUrlResponse>(
+        `${apiClient.baseURL}/jobs/presigned-url`,
+        requestData
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Error getting presigned upload URL:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Step 3: Notify backend that upload is complete to trigger analysis.
+   */
+  async notifyUploadComplete(jobId: string, data: NotifyUploadCompleteRequest): Promise<NotifyUploadCompleteResponse> {
+    try {
+      const response = await axios.post<NotifyUploadCompleteResponse>(
+        `${apiClient.baseURL}/jobs/${jobId}/notify-upload-complete`,
+        data
+      );
+      return response.data;
+    } catch (error) {
+      console.error(`Error notifying upload complete for job ${jobId}:`, error);
+      throw error;
+    }
+  },
+
+  /**
+   * Unified function to handle the entire upload and analysis initiation process.
+   */
+  async uploadScriptAndStartAnalysis(
+    file: File, 
+    onUploadProgress?: (progressEvent: any) => void
+  ): Promise<NotifyUploadCompleteResponse> {
+    const presignedUrlData = await this.getPresignedUploadUrl({ filename: file.name });
+
+    const uploadResponse = await axios.put(presignedUrlData.uploadUrl, file, {
+      headers: { 'Content-Type': file.type },
+      onUploadProgress: onUploadProgress,
+    });
+
+    const eTag = uploadResponse.headers['etag']?.replace(/"/g, '');
+
+    const notifyResponse = await this.notifyUploadComplete(presignedUrlData.jobId, {
+      originalName: file.name,
+      storedName: presignedUrlData.objectKey,
+      eTag: eTag,
+    });
+    return notifyResponse;
+  },
 };
 
 /**
