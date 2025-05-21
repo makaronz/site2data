@@ -11,6 +11,7 @@ const ProductionRisks = React.lazy(() => import('../views/ProductionRisks'));
 const PropsMatrix = React.lazy(() => import('../views/PropsMatrix'));
 const NarrativePlayback = React.lazy(() => import('../views/NarrativePlayback'));
 const LandingPage = React.lazy(() => import('../views/LandingPage'));
+const AnalysisViewerPage = React.lazy(() => import('../views/AnalysisViewerPage')); // Import nowego widoku
 
 /**
  * Main application router
@@ -24,6 +25,7 @@ const AppRouter: React.FC = () => {
         <Routes>
           {/* Landing page jako domyślna strona */}
           <Route path="/" element={<LandingPage />} />
+          <Route path="/analysis/:jobId" element={<AnalysisViewerPage />} /> {/* Dodana nowa ścieżka */}
           <Route path="/scene-breakdown" element={<SceneBreakdown />} />
           <Route path="/character-map" element={<CharacterMap />} />
           <Route path="/location-planner" element={<LocationPlanner />} />

@@ -181,6 +181,19 @@ const apiClient = {
     });
     return notifyResponse;
   },
+
+  /**
+   * Get analysis status for a job
+   */
+  async getAnalysisStatus(jobId: string) {
+    try {
+      const response = await axios.get(`${apiClient.baseURL}/jobs/${jobId}/status`);
+      return response.data;
+    } catch (error) {
+      console.error(`Error fetching status for job ${jobId}:`, error);
+      throw error;
+    }
+  },
 };
 
 /**

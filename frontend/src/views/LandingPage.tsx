@@ -87,12 +87,16 @@ const LandingPage: React.FC = () => {
     const storedApiKey = localStorage.getItem('openai_api_key');
     if (storedApiKey) {
       setApiKey(storedApiKey);
-      // Optionally auto-validate stored key
-      // validateApiKey(storedApiKey);
+      // Optionally auto-validate stored key if you want to skip the first step on revisit
+      // if (storedApiKey) validateApiKey(storedApiKey); 
     }
   }, []);
 
-  const validateApiKey = async (key: string) => {
+  const validateApiKey = async (keyToValidate: string) => {
+    if (!keyToValidate.trim()) {
+      setKeyValidationError('API Key nie może być pusty.');
+      return;
+    }
     setIsValidatingKey(true);
     setKeyValidationError(null);
     
@@ -105,7 +109,7 @@ const LandingPage: React.FC = () => {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ apiKey: key }),
+        body: JSON.stringify({ apiKey: keyToValidate }),
       });
       
       console.log('Response status:', response.status);
@@ -126,7 +130,7 @@ const LandingPage: React.FC = () => {
       
       if (response.ok && data && data.valid) {
         // Store valid key in localStorage
-        localStorage.setItem('openai_api_key', key);
+        localStorage.setItem('openai_api_key', keyToValidate);
         // Move to next step
         setActiveStep(1);
       } else {
@@ -138,11 +142,6 @@ const LandingPage: React.FC = () => {
     } finally {
       setIsValidatingKey(false);
     }
-  };
-
-  const handleApiKeySave = (key: string) => {
-    setApiKey(key);
-    validateApiKey(key);
   };
 
   const handleJobCreated = (newJobId: string, fileName: string) => {
@@ -215,8 +214,9 @@ const LandingPage: React.FC = () => {
             
             <ApiKeyInput 
               label="OpenAI API Key" 
-              onSave={handleApiKeySave} 
-              initialValue={apiKey} 
+              value={apiKey}
+              onApiKeyChange={setApiKey}
+              disabled={isValidatingKey}
             />
             
             {isValidatingKey && (
@@ -237,7 +237,7 @@ const LandingPage: React.FC = () => {
                 variant="contained"
                 color="primary"
                 onClick={() => validateApiKey(apiKey)}
-                disabled={!apiKey || isValidatingKey}
+                disabled={!apiKey.trim() || isValidatingKey}
               >
                 {isValidatingKey ? 'Validating...' : 'Continue'}
               </Button>
