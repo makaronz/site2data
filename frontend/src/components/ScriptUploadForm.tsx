@@ -11,7 +11,7 @@ import {
   LinearProgress,
 } from '@mui/material';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
-import apiClient from '../../api/apiClient';
+import apiClient from '../api/apiClient';
 
 interface ScriptUploadFormProps {
   onJobCreated?: (jobId: string, fileName: string) => void;
