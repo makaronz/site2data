@@ -8,11 +8,6 @@ alwaysApply: false
 ## What Broke and Why
 
 ### 1. WebSocket Type Mismatch
-# Memory Bank: Site2Data Repository Audit and Repair
-
-## What Broke and Why
-
-### 1. WebSocket Type Mismatch
 **What Broke**: WebSocket communication between frontend and backend was failing due to inconsistent type definitions.
 **Why**: The frontend and backend had separate, incompatible type definitions for WebSocket messages. When the backend sent messages, the frontend couldn't properly type-check or process them.
 **Root Cause**: Lack of a shared type system between frontend and backend in a monorepo structure.
