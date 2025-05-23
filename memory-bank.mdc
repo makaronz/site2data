@@ -1,3 +1,13 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Memory Bank: Site2Data Repository Audit and Repair
+
+## What Broke and Why
+
+### 1. WebSocket Type Mismatch
 # Memory Bank: Site2Data Repository Audit and Repair
 
 ## What Broke and Why
@@ -67,6 +77,62 @@
 **Why**: Mix of local state, Zustand, and potentially React Query without clear boundaries.
 **Root Cause**: Lack of state management guidelines in the architecture.
 
+## Recent Fixes (2025-01-31)
+
+### 1. MUI Button Warning - RESOLVED ✅
+**What Was Fixed**: Warning about receiving `true` for non-boolean attribute `button` in Material-UI ListItem
+**How**: Removed `button` prop from ListItem and added CSS styles for cursor and hover effects
+**Files**: `frontend/src/components/Sidebar.tsx`
+**Pattern**: Use `component="a"` with CSS styling instead of deprecated `button` prop
+
+### 2. React Router Future Flags - RESOLVED ✅  
+**What Was Fixed**: React Router v7 future flag warnings in console
+**How**: Added `future` prop to BrowserRouter with v7 compatibility flags
+**Files**: `frontend/src/App.tsx`
+**Pattern**: Always include future flags for React Router v7 compatibility
+
+### 3. AxiosError for Presigned Upload URL - RESOLVED ✅
+**What Was Fixed**: Frontend trying to call `/api/jobs/presigned-url` which doesn't exist in simple backend
+**How**: 
+- Added mock endpoints to `backend/simple-server.js` that return 501 Not Implemented
+- Enhanced error handling in `frontend/src/api/apiClient.tsx` to gracefully handle 501 responses
+- Updated documentation with clear migration path to full API
+
+**Root Cause**: Mismatch between frontend expectations and current backend implementation
+**Files**: `backend/simple-server.js`, `frontend/src/api/apiClient.tsx`, `README.md`
+
+### 4. Backend Configuration Clarity - DOCUMENTED ✅
+**Issue**: Project has two backend implementations causing confusion
+**Solution**: 
+- Current: `backend/simple-server.js` (basic functionality, good for development)
+- Full: `apps/api/` (complete implementation with MinIO, Redis, MongoDB)
+- Added clear documentation about which backend provides what functionality
+
+## Current Architecture Understanding
+
+### Frontend-Backend Communication Layers
+1. **Simple Backend** (`backend/simple-server.js`):
+   - Basic health checks and API key validation
+   - Mock endpoints for upload functionality (returns 501)
+   - Good for UI development and testing
+
+2. **Full API** (`apps/api/`):
+   - Complete file upload pipeline with presigned URLs
+   - MinIO for file storage
+   - Redis for job queuing  
+   - MongoDB for job metadata
+   - Full analysis pipeline
+
+### Error Handling Patterns Implemented
+- Graceful degradation when endpoints return 501 Not Implemented
+- Specific error messages for network vs backend vs implementation issues
+- User-friendly error messages in upload components
+
+### Migration Strategy
+- Simple backend allows frontend development without complex infrastructure
+- Clear path to switch to full API when needed
+- Environment variables and documentation support both configurations
+
 ## Pattern Updates
 
 ### 1. Monorepo Type Sharing
@@ -125,6 +191,22 @@
 - Use React Query for server state
 - Document patterns in codebase
 
+### 8. Backend Implementation Layers (NEW)
+**Pattern**: Provide multiple backend implementation levels for different development phases
+**Implementation**:
+- Simple backend for UI development and testing
+- Full backend for production features
+- Clear documentation of capabilities and migration path
+- Graceful error handling for missing functionality
+
+### 9. API Error Handling with Fallbacks (NEW)
+**Pattern**: Implement graceful degradation when backend functionality is not available
+**Implementation**:
+- Check HTTP status codes (501 = Not Implemented)
+- Provide user-friendly error messages
+- Document backend requirements clearly
+- Use environment-specific error handling
+
 ## What to Avoid in Future
 
 1. **Duplicated Type Definitions**: Never define the same types separately in frontend and backend. Always use shared types.
@@ -146,6 +228,10 @@
 9. **Separate Validation Logic**: Share validation logic between frontend and backend to ensure consistency.
 
 10. **Ignoring Authentication in WebSockets**: Apply the same authentication standards to WebSockets as to REST APIs.
+
+11. **Undefined Backend Capabilities**: Always document what each backend implementation provides and doesn't provide.
+
+12. **Poor Error UX**: Don't show technical errors to users; provide actionable, user-friendly messages.
 
 ## Tools/Framework Interactions Observed
 
@@ -172,3 +258,11 @@
 11. **React + useEffect**: React's useEffect hook requires cleanup functions to prevent memory leaks, especially with subscriptions.
 
 12. **Monorepo + Dependencies**: Monorepos need careful dependency management to prevent version conflicts and ensure consistent behavior.
+
+13. **Material-UI v5**: The `button` prop on ListItem should be replaced with `component` prop and CSS styling for proper DOM attributes.
+
+14. **React Router v7**: Future flags should be added proactively to avoid warnings and ensure smooth upgrade path.
+
+15. **Axios + Error Handling**: Implement specific error handling for different HTTP status codes (404, 501, network errors) to provide better UX.
+
+16. **Multi-tier Backend Architecture**: Having simple and full backend implementations allows for phased development but requires clear documentation and error handling.

@@ -18,12 +18,12 @@ export default defineConfig({
     port: parseInt(process.env.VITE_FRONTEND_PORT || '5173'),
     proxy: {
       '/api': {
-        target: process.env.VITE_API_GATEWAY_URL || 'http://localhost:3002',
+        target: process.env.VITE_API_GATEWAY_URL || 'http://localhost:3001',
         changeOrigin: true,
         secure: false,
       },
       '/ws/script-analysis': {
-        target: process.env.VITE_WEBSOCKET_URL || 'ws://localhost:3002',
+        target: process.env.VITE_WEBSOCKET_URL || 'ws://localhost:3001',
         ws: true,
         changeOrigin: true,
       },

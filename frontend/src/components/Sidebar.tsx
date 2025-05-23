@@ -151,7 +151,6 @@ const Sidebar: React.FC = () => {
       <List>
         {navigationItems.map((item) => (
           <ListItem 
-            button 
             key={item.text}
             component="a"
             href={item.path}
@@ -163,7 +162,9 @@ const Sidebar: React.FC = () => {
                 backgroundColor: highContrast 
                   ? theme.palette.mode === 'dark' ? '#333333' : '#e0e0e0'
                   : theme.palette.action.hover,
-              }
+              },
+              cursor: 'pointer',
+              textDecoration: 'none'
             }}
           >
             <ListItemIcon sx={{ 

@@ -59,12 +59,12 @@ Structure	kebab-case directories; file order → export → sub‑components →
 * Sentry error aggregation with source maps.
 * OpenTelemetry traces → Grafana Tempo dashboards.
 13 . CI/CD & Version Control
-* Conventional Commits syntax: <type>[optional scope]: <description>
+* Conventional Commits syntax:<type>[optional scope]: <description>
 * 
 * [optional body]
 * 
 * [optional footer(s)]
-*  Types: feat, fix, docs, style, refactor, test, chore, ci, perf, build; append ! or BREAKING CHANGE: for majors.
+* Types: feat, fix, docs, style, refactor, test, chore, ci, perf, build; append ! or BREAKING CHANGE: for majors.
 * Trunk‑based flow; Husky pre‑commit (lint, type‑check, test); semantic‑release for versioning.
 * Blue‑green or canary deploy via Vercel.
 14 . Infrastructure as Code
@@ -83,7 +83,7 @@ Structure	kebab-case directories; file order → export → sub‑components →
         * Update - [ ] ➔ - [x] (✅ Done) when completing tasks.
         * Append new tasks chronologically; never overwrite.
     3. PR Gate: PR merges only when its task is ticked and follow‑ups appended.
-* change_log2025.md Skeleton # Change Log 2025
+* change_log2025.md Skeleton# Change Log 2025
 * 
 * ## 📌 Task List
 * - [ ] <short task title>

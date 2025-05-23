@@ -136,9 +136,20 @@ const apiClient = {
         requestData
       );
       return response.data;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error getting presigned upload URL:', error);
-      throw error;
+      
+      // Sprawdź czy to błąd 501 (Not Implemented)
+      if (error.response?.status === 501) {
+        throw new Error('Upload functionality is not available in the current backend configuration. Please switch to the full API implementation.');
+      }
+      
+      // Sprawdź czy to błąd sieci
+      if (!error.response) {
+        throw new Error('Unable to connect to the backend. Please ensure the server is running.');
+      }
+      
+      throw new Error(error.response?.data?.message || 'Failed to get upload URL');
     }
   },
 
@@ -152,9 +163,20 @@ const apiClient = {
         data
       );
       return response.data;
-    } catch (error) {
+    } catch (error: any) {
       console.error(`Error notifying upload complete for job ${jobId}:`, error);
-      throw error;
+      
+      // Sprawdź czy to błąd 501 (Not Implemented)
+      if (error.response?.status === 501) {
+        throw new Error('Upload notification functionality is not available in the current backend configuration.');
+      }
+      
+      // Sprawdź czy to błąd sieci
+      if (!error.response) {
+        throw new Error('Unable to connect to the backend. Please ensure the server is running.');
+      }
+      
+      throw new Error(error.response?.data?.message || 'Failed to notify upload completion');
     }
   },
 

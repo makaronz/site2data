@@ -238,3 +238,118 @@ VITE_PORT=5173
 API_URL=http://localhost:3001
 ```
 
+## Recent Bug Fixes (2025-01-31)
+
+### ✅ Fixed Issues
+
+1. **MUI Button Warning**: Fixed invalid `button` prop in `Sidebar.tsx` component
+2. **React Router Future Flags**: Added v7 compatibility flags to eliminate warnings
+3. **AxiosError for presigned upload URL**: Added proper error handling and mock endpoints
+
+### 🔧 Current Backend Configuration
+
+The project currently runs with a **simplified backend** (`backend/simple-server.js`) for development. For full functionality including file uploads, you need to run the complete API implementation.
+
+#### Quick Start (Simple Backend)
+```bash
+npm start  # Uses backend/simple-server.js
+```
+
+#### Full API Implementation
+```bash
+# Switch to full API implementation in apps/api
+cd apps/api
+npm install
+npm start
+
+# Update frontend configuration to point to full API
+# The full API runs on port 3001 and includes:
+# - File upload with presigned URLs
+# - MinIO integration
+# - Redis for job queuing
+# - MongoDB for job storage
+```
+
+### 🚨 Known Limitations with Simple Backend
+
+- File upload functionality returns 501 Not Implemented
+- No MinIO/Redis/MongoDB integration
+- Limited to basic API key validation and health checks
+
+### 🔄 Migration Path
+
+To enable full functionality:
+
+1. Set up required services (MinIO, Redis, MongoDB)
+2. Configure environment variables for the full API
+3. Switch from `backend/simple-server.js` to `apps/api`
+4. Update `start.sh` to use the full API implementation
+
+## Development Setup
+
+### Prerequisites
+- Node.js 18+
+- MongoDB (for full API)
+- Redis (for full API)
+- MinIO (for full API)
+
+### Environment Variables
+Copy `.env.example` to `.env` and configure:
+```bash
+OPENAI_API_KEY=your_openai_key
+MONGODB_URI=mongodb://localhost:27017/site2data
+REDIS_URL=redis://localhost:6379
+MINIO_ENDPOINT=localhost
+MINIO_PORT=9000
+```
+
+## Features
+
+- **Screenplay Analysis**: AI-powered script analysis using OpenAI
+- **Multi-format Support**: PDF and TXT file uploads
+- **Real-time Progress**: WebSocket-based progress tracking
+- **Role-based Navigation**: Different views for different film industry roles
+- **Dark Mode**: Accessibility-focused UI with high contrast support
+
+## Architecture
+
+- **Frontend**: React + TypeScript + Material-UI
+- **Backend**: Express.js with multiple implementation levels
+- **Storage**: MinIO for files, MongoDB for metadata, Redis for queuing
+- **AI**: OpenAI GPT for screenplay analysis
+
+## API Endpoints
+
+### Simple Backend (`backend/simple-server.js`)
+- `GET /api/health` - Health check
+- `POST /api/validate-openai-key` - Basic API key validation
+- `POST /api/jobs/presigned-url` - Returns 501 Not Implemented
+- `POST /api/jobs/:jobId/notify-upload-complete` - Returns 501 Not Implemented
+
+### Full API (`apps/api`)
+- All simple backend endpoints plus:
+- `POST /api/jobs/presigned-url` - Generate presigned upload URLs
+- `POST /api/jobs/:jobId/notify-upload-complete` - Start analysis pipeline
+- `GET /api/jobs/:jobId` - Get job status
+- `GET /api/analysis/:jobId` - Get analysis results
+
+## Testing
+
+```bash
+npm run test:e2e      # End-to-end tests with Cypress
+npm run test:component # Component tests
+npm run test:open     # Open Cypress UI
+```
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests if applicable
+5. Submit a pull request
+
+## License
+
+This project is licensed under the MIT License.
+

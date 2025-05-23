@@ -159,3 +159,72 @@ REMEMBER: After every memory reset, I begin completely fresh. The Memory Bank is
 
 # Planning
 When asked to enter "Planner Mode" or using the /plan command, deeply reflect upon the changes being asked and analyze existing code to map the full scope of changes needed. Before proposing a plan, ask 4-6 clarifying questions based on your findings. Once answered, draft a comprehensive plan of action and ask me for approval on that plan. Once approved, implement all steps in that plan. After completing each phase/step, mention what was just completed and what the next steps are + phases remaining after these steps
+
+---
+
+## PixelPasta Project Intelligence
+
+### Discovered Patterns & Architectural Decisions
+
+**Client-Side Rendering Migration Pattern:**
+- Successful transition from server-side table generation to client-side JavaScript components
+- Pattern: Remove server template logic → Add client container → Load JS component → Initialize with data
+- Key files: `results.html` (template), `ComparisonTable.js` (component)
+- Benefit: Better UX, reduced server load, more interactive possibilities
+
+**Bootstrap + Custom Theme Management:**
+- Pattern: `data-bs-theme` attribute + localStorage persistence + custom CSS overrides
+- Implementation: Toggle in `base.html` → localStorage state → CSS variables for both themes
+- Key insight: Bootstrap 5.3+ theming integrates well with custom dark mode implementation
+- Files: `base.html` (toggle UI), `style.css` (theme styles)
+
+**Flask + JavaScript Modular Architecture:**
+- Backend: Flask serves data via JSON endpoints (`/table-data`)
+- Frontend: Vanilla JS components with @21st-dev/magic integration planned
+- Template system: `base.html` with extensible `scripts` block for page-specific JS
+- Separation: Server handles analysis/processing, client handles presentation/interaction
+
+### User Preferences & Workflow Patterns
+
+**Professional Film Industry Focus:**
+- Target users: Colorists, DIT operators, QC experts
+- Critical requirements: Precision over speed, technical accuracy, professional UI
+- Workflow: Upload → Analyze → Compare → Export (PDF/CSV) → Share
+- UI preference: Minimalist, technical, accessible (WCAG 2.1 AA)
+
+**Technical Implementation Preferences:**
+- Modular component architecture over monolithic approaches
+- Dark mode as primary design consideration (industry standard)
+- Progressive enhancement: core functionality works, JS enhances UX
+- Memory Bank driven development for session continuity
+
+### Known Challenges & Solutions
+
+**Challenge: Complex LUT Mathematics**
+- Solution: Dedicated `lut_analyzer_package/` for mathematical operations
+- Pattern: Separate mathematical accuracy from UI concerns
+- Testing requirement: Mathematical precision tests alongside functional tests
+
+**Challenge: Professional Tool Integration**
+- Solution: Multiple export formats (PDF, CSV, ZIP) for different workflows
+- Pattern: Backend processing → Frontend presentation → Export pipeline
+- Future: Integration with DIT/postproduction tools
+
+**Challenge: Accessibility in Technical Tools**
+- Solution: WCAG 2.1 AA compliance from start, not retrofit
+- Pattern: Keyboard navigation + screen reader support + high contrast
+- Tool preference: Native HTML semantics + Bootstrap accessibility features
+
+### Evolution Tracking
+
+**Phase 1 (Complete):** Core backend analysis + basic frontend
+**Phase 2 (Complete):** Client-side table integration + dark mode
+**Phase 3 (Current):** Accessibility improvements + comprehensive testing
+**Phase 4 (Planned):** Creative features prototyping (morphing, VR, temporal analysis)
+
+### Critical Success Factors
+- Mathematical precision in LUT analysis (non-negotiable)
+- Professional UI/UX standards for film industry
+- Modular architecture for future extensibility
+- Comprehensive testing (mathematical + functional + accessibility)
+- Documentation-driven development via Memory Bank
