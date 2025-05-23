@@ -128,7 +128,9 @@ const apiClient = {
 
   /**
    * Step 1: Request a presigned URL for file upload.
+   * DEPRECATED: Current backend doesn't support presigned URLs, use uploadScriptAndStartAnalysis instead
    */
+  /*
   async getPresignedUploadUrl(requestData: PresignedUrlRequest): Promise<PresignedUrlResponse> {
     try {
       const response = await axios.post<PresignedUrlResponse>(
@@ -152,10 +154,13 @@ const apiClient = {
       throw new Error(error.response?.data?.message || 'Failed to get upload URL');
     }
   },
+  */
 
   /**
    * Step 3: Notify backend that upload is complete to trigger analysis.
+   * DEPRECATED: Current backend doesn't support this workflow, use uploadScriptAndStartAnalysis instead
    */
+  /*
   async notifyUploadComplete(jobId: string, data: NotifyUploadCompleteRequest): Promise<NotifyUploadCompleteResponse> {
     try {
       const response = await axios.post<NotifyUploadCompleteResponse>(
@@ -179,29 +184,55 @@ const apiClient = {
       throw new Error(error.response?.data?.message || 'Failed to notify upload completion');
     }
   },
+  */
 
   /**
    * Unified function to handle the entire upload and analysis initiation process.
+   * Simplified version that uses direct upload to /api/script/analyze
    */
   async uploadScriptAndStartAnalysis(
     file: File, 
     onUploadProgress?: (progressEvent: any) => void
-  ): Promise<NotifyUploadCompleteResponse> {
-    const presignedUrlData = await this.getPresignedUploadUrl({ filename: file.name });
+  ): Promise<{ jobId: string; message: string; result?: any }> {
+    try {
+      const formData = new FormData();
+      formData.append('script', file);
 
-    const uploadResponse = await axios.put(presignedUrlData.uploadUrl, file, {
-      headers: { 'Content-Type': file.type },
-      onUploadProgress: onUploadProgress,
-    });
+      const response = await axios.post(`${apiClient.baseURL}/script/analyze`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+        onUploadProgress: onUploadProgress,
+      });
 
-    const eTag = uploadResponse.headers['etag']?.replace(/"/g, '');
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Upload failed');
+      }
 
-    const notifyResponse = await this.notifyUploadComplete(presignedUrlData.jobId, {
-      originalName: file.name,
-      storedName: presignedUrlData.objectKey,
-      eTag: eTag,
-    });
-    return notifyResponse;
+      return {
+        jobId: response.data.id || Date.now().toString(),
+        message: response.data.message || 'Analysis completed successfully',
+        result: response.data.result
+      };
+    } catch (error: any) {
+      console.error('Error uploading script:', error);
+      
+      // Sprawdź czy to błąd sieci
+      if (!error.response) {
+        throw new Error('Unable to connect to the backend. Please ensure the server is running.');
+      }
+      
+      // Sprawdź kod błędu
+      if (error.response?.status === 413) {
+        throw new Error('File is too large. Maximum size is 10MB.');
+      }
+      
+      if (error.response?.status === 400) {
+        throw new Error(error.response?.data?.message || 'Invalid file. Only PDF and TXT files are allowed.');
+      }
+      
+      throw new Error(error.response?.data?.message || 'Failed to upload and analyze script');
+    }
   },
 
   /**
