@@ -59,11 +59,11 @@ export VITE_PORT=$FRONTEND_PORT
 export API_URL=$BACKEND_URL
 
 echo -e "${BLUE}===========================================${NC}"
-echo -e "${GREEN}Uruchamianie backendu na porcie $BACKEND_PORT...${NC}"
+echo -e "${GREEN}Uruchamianie backendu z upload functionality na porcie $BACKEND_PORT...${NC}"
 
-# Uruchomienie backendu w tle
+# Uruchomienie backendu TypeScript z upload functionality
 cd backend
-npm run start &
+node --loader ts-node/esm --experimental-json-modules upload-server.ts &
 BACKEND_PID=$!
 
 # Czekaj chwilę na uruchomienie backendu
@@ -78,9 +78,12 @@ npm run dev &
 FRONTEND_PID=$!
 
 echo -e "${BLUE}===========================================${NC}"
-echo -e "${GREEN}Aplikacja została uruchomiona:${NC}"
-echo -e "${GREEN}- Backend: $BACKEND_URL${NC}"
+echo -e "${GREEN}🚀 Aplikacja została uruchomiona z pełną funkcjonalnością upload:${NC}"
+echo -e "${GREEN}- Backend API: $BACKEND_URL${NC}"
 echo -e "${GREEN}- Frontend: http://localhost:$FRONTEND_PORT${NC}"
+echo -e "${GREEN}- Upload endpoint: $BACKEND_URL/api/script/analyze${NC}"
+echo -e "${GREEN}✅ Upload functionality: DOSTĘPNA${NC}"
+echo -e "${GREEN}📁 Obsługuje pliki: PDF, TXT (max 10MB)${NC}"
 echo -e "${BLUE}===========================================${NC}"
 echo -e "${GREEN}Naciśnij Ctrl+C, aby zatrzymać wszystkie procesy${NC}"
 

@@ -7,7 +7,7 @@ import { WebSocketClient } from '../types/websocket';
 import { scriptAnalysisService } from '../services/scriptAnalysis';
 import { exportNodesCSV, exportEdgesCSV, exportGEXF } from '../utils/graphExport';
 import { z } from 'zod';
-import { pdf } from 'pdf-parse';
+import pdf from 'pdf-parse';
 import { validateRequest, validationSchemas, validateAuthToken } from '../middleware/validation';
 // Import the path sanitizer utility
 import pathSanitizer from '../utils/pathSanitizer';
@@ -15,7 +15,7 @@ import pathSanitizer from '../utils/pathSanitizer';
 import { intensiveLimiter } from '../middleware/rateLimiter';
 
 // Definicje typów
-interface MulterFile extends Express.Multer.File {
+interface MulterFile extends multer.File {
   path: string;
 }
 
